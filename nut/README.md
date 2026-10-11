@@ -18,7 +18,7 @@ Installer for [Network UPS Tools](https://networkupstools.org/) on Proxmox VE / 
 ### Interactive
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
 ```
 
 The wizard asks for:
@@ -59,10 +59,10 @@ Pass the mode and options, plus `-y` to skip all prompts:
 
 ```bash
 # Server
-wget -qO- https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh | bash -s -- server -y
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)" install.sh server -y
 
 # Client
-wget -qO- https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh | bash -s -- client -y --server 10.0.0.1 --pass <password>
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)" install.sh client -y --server 10.0.0.1 --pass <password>
 ```
 
 Without `-y`, options given on the command line become the defaults in the wizard.

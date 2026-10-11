@@ -10,8 +10,9 @@
 #   bash install.sh client --server 10.0.0.1 --pass <monuser password> [options]
 #   bash install.sh uninstall
 #
-# Via wget:
-#   wget -qO- https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh | bash
+# Via curl:
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)" install.sh server -y
 set -euo pipefail
 
 # ---------------------------------------------------------------- defaults
@@ -70,7 +71,7 @@ EOF
 	exit "${1:-0}"
 }
 
-# Prompts read from /dev/tty so they still work under "wget -qO- ... | bash"
+# Prompts read from /dev/tty so they still work when the script is piped into bash
 INTERACTIVE=0
 { : </dev/tty; } 2>/dev/null && INTERACTIVE=1
 
@@ -444,7 +445,7 @@ if [[ $MODE == server ]]; then
 	cat <<EOF
 
   Install on each client with:
-    wget -qO- $RAW_URL/install.sh | bash -s -- client --server ${IP:-<this-ip>} --user $MON_USER --pass $MON_PASS
+    bash -c "\$(curl -fsSL $RAW_URL/install.sh)" install.sh client --server ${IP:-<this-ip>} --user $MON_USER --pass $MON_PASS
 
   Admin user (upsrw/upscmd): admin / $ADMIN_PASS   (stored in $NUT_DIR/upsd.users)
 EOF

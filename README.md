@@ -12,7 +12,7 @@ lives in its own folder with its own `install.sh` and `README.md`.
 
 - Proxmox VE 8/9 or Debian 12+
 - Root access on each node
-- `curl` or `wget` to install from GitHub
+- `curl` to install from GitHub
 
 ## Quick start
 
@@ -23,7 +23,7 @@ Run on the node, as root. See each tool's README for options and details.
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
 
 # NUT (interactive wizard: server / client / uninstall)
-wget -qO- https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh | bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
 ```
 
 From a local checkout: `bash nut/install.sh` works as-is. `disk-health/install.sh`
