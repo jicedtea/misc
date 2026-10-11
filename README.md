@@ -7,6 +7,7 @@ Synology DSM). Each tool lives in its own folder with its own `install.sh` and
 | Tool | Platform | What it does |
 |---|---|---|
 | [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
+| [cpupower](cpupower/) | Proxmox | Installs `linux-cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
 | [disk-health](disk-health/) | Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [nut](nut/) | Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
@@ -54,6 +55,9 @@ See each tool's README for options and details.
 # Backup hook (asks for the rclone remote path)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/backup/install.sh)"
 
+# CPU governor at boot (lists the governors your CPU supports)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/cpupower/install.sh)"
+
 # Disk Health Monitor
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
 
@@ -80,6 +84,7 @@ always downloads its files from GitHub, so use the manual install steps in
 .
 ├── install.sh         installer for all tools (pick from a menu)
 ├── backup/            vzdump hook script + installer (rclone upload)
+├── cpupower/          CPU governor at boot (systemd service)
 ├── disk-health/       SMART monitor script, systemd services/timers, installer
 ├── gpu-passthrough/   GPU / iGPU / GVT-g passthrough host setup
 ├── nut/               NUT installer for UPS server/client

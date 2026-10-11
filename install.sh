@@ -28,6 +28,7 @@ ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
 	"disk-health|SMART monitor, self-tests and reports via Proxmox notifications||pve"
 	"nut|Network UPS Tools server/client for clean shutdown on power loss||pve"
+	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|pve"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
 )
