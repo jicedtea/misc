@@ -3,7 +3,8 @@
 #
 # Installs vzbackup.sh as a vzdump hook script. After every backup job it
 # uploads a tarball of the host config (/etc, /var/lib/pve-cluster, /root)
-# and syncs the dump directory to an rclone remote.
+# and syncs the dump directory to an rclone remote, then sends a notification
+# through the Proxmox notification system (mail to root -> system-mail).
 #
 # Usage:
 #   bash install.sh                          (asks for the remote path)
@@ -19,6 +20,7 @@ set -euo pipefail
 MODE=install
 REMOTE_PATH=""
 DUMP_DIR="/var/lib/vz/dump"
+NOTIFY=""            # always | failure | never   (asked if omitted, default always)
 TARGET=/root/vzbackup.sh
 VZDUMP_CONF=/etc/vzdump.conf
 RCLONE_CONF=/root/.config/rclone/rclone.conf
@@ -38,6 +40,7 @@ Usage: $0 [install|uninstall] [options]
 Options:
   --remote PATH    rclone destination, e.g. GD:Backup/pve   (asked if omitted)
   --dump-dir DIR   Local vzdump directory to sync           (default: $DUMP_DIR)
+  --notify WHEN    always | failure | never                 (default: always)
   -h, --help       Show this help
 EOF
 	exit "${1:-0}"
@@ -76,6 +79,7 @@ while [[ $# -gt 0 ]]; do
 	case "$1" in
 		--remote)   REMOTE_PATH=$2; shift 2 ;;
 		--dump-dir) DUMP_DIR=$2; shift 2 ;;
+		--notify)   NOTIFY=$2; shift 2 ;;
 		-h|--help)  usage 0 ;;
 		*) die "Unknown option: $1" ;;
 	esac
@@ -138,6 +142,28 @@ else
 	confirm "Install anyway?" || exit 1
 fi
 
+# ---------------------------------------------------------------- notification
+if [[ -z $NOTIFY ]]; then
+	NOTIFY=always
+	if [[ $INTERACTIVE -eq 1 ]]; then
+		echo "  Send a notification after each upload (Proxmox notification system)?"
+		echo "    1) always   2) only on failure   3) never"
+		while :; do
+			ask pick "Choose 1-3" "1"
+			case $pick in
+				1) NOTIFY=always; break ;;
+				2) NOTIFY=failure; break ;;
+				3) NOTIFY=never; break ;;
+			esac
+			warn "Enter 1, 2 or 3"
+		done
+	fi
+fi
+[[ $NOTIFY =~ ^(always|failure|never)$ ]] || die "--notify must be always, failure or never"
+if [[ $NOTIFY != never ]] && ! command -v sendmail >/dev/null 2>&1; then
+	warn "sendmail not found: notifications can't be sent (Proxmox ships postfix, install it with: apt install postfix)"
+fi
+
 # ---------------------------------------------------------------- hook script
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -155,14 +181,19 @@ fi
 # Drop CRLF in case the file was checked out on Windows, then set the config values
 sed -i 's/\r$//' "$TMP_DIR/vzbackup.sh"
 grep -q '^remotePath=' "$TMP_DIR/vzbackup.sh" || die "vzbackup.sh has no remotePath= line"
-awk -v r="$REMOTE_PATH" -v d="$DUMP_DIR" '
+grep -q '^notify=' "$TMP_DIR/vzbackup.sh" || die "vzbackup.sh has no notify= line (outdated file?)"
+awk -v r="$REMOTE_PATH" -v d="$DUMP_DIR" -v n="$NOTIFY" '
 	/^remotePath=/ { print "remotePath=\"" r "\""; next }
 	/^dumpDir=/    { print "dumpDir=\"" d "\""; next }
+	/^notify=/     { print "notify=\"" n "\"                # always | failure | never"; next }
 	{ print }
 ' "$TMP_DIR/vzbackup.sh" >"$TMP_DIR/vzbackup.out"
 
+# vzdump runs the hook directly, so it must be executable
 install -o root -g root -m 700 "$TMP_DIR/vzbackup.out" "$TARGET"
-ok "Installed $TARGET"
+chmod 700 "$TARGET"
+[[ -x $TARGET ]] || die "$TARGET is not executable"
+ok "Installed $TARGET (mode 700, executable)"
 
 # ---------------------------------------------------------------- vzdump.conf
 touch "$VZDUMP_CONF"
@@ -182,6 +213,7 @@ ${c_ok}Done.${c_off}
   Hook script : $TARGET
   Remote path : $REMOTE_PATH/{config,dump}
   Dump dir    : $DUMP_DIR
+  Notify      : $NOTIFY
 
 The hook runs at the end of every vzdump job (job-end). Test it with:
   $TARGET job-end
@@ -189,3 +221,12 @@ The hook runs at the end of every vzdump job (job-end). Test it with:
 Note: the dump folder is mirrored with 'rclone sync', so backups pruned
 locally are also deleted on the remote.
 EOF
+if [[ $NOTIFY != never ]]; then
+	cat <<EOF
+
+Notifications are mailed to root and routed by Datacenter > Notifications
+(type system-mail). Make sure root@pam has an email and a matcher exists:
+  pveum user modify root@pam -email you@example.com
+  pvesh get /cluster/notifications/matchers
+EOF
+fi
