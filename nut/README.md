@@ -1,6 +1,6 @@
-# NUT for Proxmox VE
+# NUT installer
 
-Installer for [Network UPS Tools](https://networkupstools.org/) on Proxmox VE / Debian, so your machines shut down cleanly when the power goes out.
+Installer for [Network UPS Tools](https://networkupstools.org/) on Debian / Ubuntu / Proxmox VE, so your machines shut down cleanly when the power goes out.
 
 ```
             USB
@@ -127,7 +127,7 @@ upsmon -c fsd                 # CAREFUL: simulates a power failure, the machine 
 
 ## Notes
 
-- If Proxmox Firewall is enabled, allow **tcp/3493** on the server from the clients.
+- If a firewall is enabled (Proxmox Firewall, UFW...), allow **tcp/3493** on the server from the clients.
 - When a Proxmox host shuts down, `pve-guests` stops VMs/CTs first. Install the QEMU guest agent in VMs for fast, clean shutdowns.
 - To power hosts back on automatically, enable "Restore on AC power loss" (or "Power On") in the BIOS. The server sets `offdelay=60`, so the UPS cuts its output after the server shuts down and the machines see power return.
 - Uses the NUT 2.8+ keywords `primary` / `secondary` (Proxmox 8/9). The old `master` / `slave` still work.

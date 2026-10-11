@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# CPU frequency governor at boot for Proxmox VE / Debian
+# CPU frequency governor at boot for Debian / Ubuntu / Proxmox VE
 #
-# Installs linux-cpupower, lets you pick one of the governors the CPU supports
+# Installs cpupower (linux-cpupower, or linux-tools on Ubuntu), lets you pick one of the governors the CPU supports
 # and installs a systemd service that sets it on every boot.
 #
 # Usage:
@@ -123,7 +123,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ $EUID -eq 0 ]] || die "Run as root"
-[[ -f /etc/debian_version ]] || die "Only Debian / Proxmox VE is supported"
+[[ -f /etc/debian_version ]] || die "Only Debian / Ubuntu / Proxmox VE is supported"
 [[ $ASSUME_YES -eq 1 ]] && INTERACTIVE=0
 MODE=${MODE:-install}
 
@@ -137,7 +137,7 @@ if [[ $MODE == uninstall ]]; then
 	else
 		warn "$SERVICE is not installed"
 	fi
-	echo "  linux-cpupower is kept. Remove it with: apt purge linux-cpupower"
+	echo "  cpupower (linux-cpupower / linux-tools) is kept"
 	exit 0
 fi
 
@@ -151,13 +151,36 @@ mapfile -t GOVERNORS < <(printf '%s\n' "${GOVERNORS[@]}" | grep -vx userspace ||
 [[ ${#GOVERNORS[@]} -gt 0 ]] || die "The $DRIVER driver reports no usable governors"
 
 # ---------------------------------------------------------------- install linux-cpupower
-info "Checking linux-cpupower"
-if ! command -v cpupower >/dev/null 2>&1; then
+# Debian / Proxmox: linux-cpupower. Ubuntu: cpupower comes with linux-tools for the
+# running kernel; /usr/bin/cpupower is a wrapper that needs the tools of the booted
+# kernel, so the kernel flavour's metapackage (e.g. linux-tools-generic) is installed
+# too, otherwise the service fails after the next kernel upgrade.
+ubuntu_tools_pkgs() {
+	local meta
+	printf '%s\n' linux-tools-common "linux-tools-$(uname -r)"
+	# installed kernel metapackage, e.g. linux-image-generic or linux-image-generic-hwe-24.04
+	meta=$(dpkg-query -W -f='${db:Status-Abbrev} ${Package}\n' 'linux-image-*' 2>/dev/null \
+		| awk '$1 == "ii" && $2 !~ /[0-9]+\.[0-9]+\.[0-9]+-/ { print $2; exit }')
+	[[ -n $meta ]] && echo "${meta/linux-image-/linux-tools-}"
+	return 0
+}
+cpupower_works() { command -v cpupower >/dev/null 2>&1 && cpupower --version >/dev/null 2>&1; }
+
+OS_ID=$(. /etc/os-release 2>/dev/null && echo "${ID:-}")
+info "Checking cpupower"
+if ! cpupower_works; then
 	export DEBIAN_FRONTEND=noninteractive
 	apt-get update -qq
-	apt-get install -y -qq linux-cpupower >/dev/null
+	if [[ $OS_ID == ubuntu ]]; then
+		mapfile -t pkgs < <(ubuntu_tools_pkgs)
+		info "Installing ${pkgs[*]}"
+		apt-get install -y -qq "${pkgs[@]}" >/dev/null || die "Installing ${pkgs[*]} failed"
+	else
+		apt-get install -y -qq linux-cpupower >/dev/null || die "Installing linux-cpupower failed"
+	fi
 fi
-CPUPOWER=$(command -v cpupower) || die "cpupower not found after installing linux-cpupower"
+cpupower_works || die "cpupower does not run (on Ubuntu: apt install linux-tools-$(uname -r))"
+CPUPOWER=$(command -v cpupower)
 ok "cpupower: $CPUPOWER"
 
 # ---------------------------------------------------------------- pick a governor

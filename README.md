@@ -1,27 +1,28 @@
 # misc
 
-Small tools and installers for homelab machines (Proxmox VE / Debian and
-Synology DSM). Each tool lives in its own folder with its own `install.sh` and
+Small tools and installers for homelab machines (Debian / Ubuntu, Proxmox VE
+and Synology DSM). Each tool lives in its own folder with its own `install.sh` and
 `README.md`.
 
 | Tool | Platform | What it does |
 |---|---|---|
 | [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
-| [cpupower](cpupower/) | Proxmox | Installs `linux-cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
-| [disk-health](disk-health/) | Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
+| [cpupower](cpupower/) | Debian / Ubuntu / Proxmox | Installs `cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
+| [disk-health](disk-health/) | Debian / Ubuntu / Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and mails alerts and weekly reports (through Proxmox VE notifications on Proxmox). |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
-| [nut](nut/) | Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
+| [ipset](ipset/) | Debian / Ubuntu / Proxmox (UFW) | Blocks known-bad IPs from [stamparm/ipsum](https://github.com/stamparm/ipsum) with an ipset and UFW rules. Restored at boot, updated daily. |
+| [nut](nut/) | Debian / Ubuntu / Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
 | [synology-acme](synology-acme/) | Synology | Installs acme.sh, issues a certificate through a DNS API (Let's Encrypt / ZeroSSL) and deploys it to DSM. |
 
 ## Requirements
 
-- Proxmox VE 8/9 or Debian 12+, or Synology DSM 7
-- Root access (on DSM: `sudo -i`)
+- Debian 12+ / Ubuntu 22.04+, Proxmox VE 8/9, or Synology DSM 7
+- Root access (`sudo -i`)
 - `curl` to install from GitHub
 
 ## Quick start
 
-Run on the node, as root.
+Run on the machine, as root.
 
 ### Install several tools at once
 
@@ -29,8 +30,13 @@ Run on the node, as root.
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)"
 ```
 
-The installer detects the machine and only offers the tools for it: Proxmox
-tools on Proxmox / Debian, Synology tools on Synology DSM.
+The installer detects the machine and only offers the tools for it:
+
+| Machine | Tools offered |
+|---|---|
+| Debian / Ubuntu | cpupower, disk-health, ipset, nut |
+| Proxmox VE | the above + backup, gpu-passthrough |
+| Synology DSM | synology-acme |
 
 A checklist lets you pick the tools (Space to select, Enter to install). Each
 selected tool then runs its own installer and wizard, one after the other.
@@ -43,9 +49,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/insta
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh all
 ```
 
-`GITHUB_REPO` and `GITHUB_REF` (e.g. a tag) choose where the installers are
-downloaded from. From a local checkout, `bash install.sh` uses the files in the
-checkout.
+From a local checkout, `bash install.sh` uses the files in the checkout.
 
 ### Install one tool
 
@@ -63,6 +67,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-
 
 # GPU passthrough (interactive wizard: setup / check / uninstall)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/gpu-passthrough/install.sh)"
+
+# ipset blacklist for UFW (needs UFW installed)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/ipset/install.sh)"
 
 # NUT (interactive wizard: server / client / uninstall)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
@@ -87,6 +94,7 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── cpupower/          CPU governor at boot (systemd service)
 ├── disk-health/       SMART monitor script, systemd services/timers, installer
 ├── gpu-passthrough/   GPU / iGPU / GVT-g passthrough host setup
+├── ipset/             UFW IP blacklist (ipsum) with boot restore and daily update
 ├── nut/               NUT installer for UPS server/client
 └── synology-acme/     acme.sh installer for Synology DSM
 ```

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily update of the blacklist ipset
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+RandomizedDelaySec=30min
+# Run at boot if the machine was off at the scheduled time
+Persistent=true
+
+[Install]
+WantedBy=timers.target

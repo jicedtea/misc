@@ -1,6 +1,6 @@
 # cpupower
 
-Sets the CPU frequency governor at every boot on Proxmox VE / Debian.
+Sets the CPU frequency governor at every boot on Debian / Ubuntu / Proxmox VE.
 
 ## Install
 
@@ -12,7 +12,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/cpupo
 
 The installer:
 
-1. Installs `linux-cpupower` if `cpupower` is missing
+1. Installs `cpupower` if missing: `linux-cpupower` on Debian / Proxmox, or on
+   Ubuntu `linux-tools-common`, `linux-tools-$(uname -r)` and the tools
+   metapackage of the installed kernel (e.g. `linux-tools-generic`), so
+   `cpupower` keeps working after kernel upgrades
 2. Reads the governors the CPU driver supports
    (`/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors`) and
    lists them with a short description and the current one marked
@@ -65,5 +68,3 @@ next reboot, and `linux-cpupower` is kept.
   instead of writing a service that would fail.
 - If `power-profiles-daemon` is running it may change the governor again. The
   service starts after it, and the installer warns when it is active.
-- `cpupower.sh` is the original standalone script (always `schedutil`).
-  `install.sh` replaces it and writes the same service.

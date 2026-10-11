@@ -24,7 +24,7 @@ NOTIFY=""            # always | failure | never   (asked if omitted, default alw
 TARGET=/root/vzbackup.sh
 VZDUMP_CONF=/etc/vzdump.conf
 RCLONE_CONF=/root/.config/rclone/rclone.conf
-RAW_URL="https://raw.githubusercontent.com/${GITHUB_REPO:-jicedtea/misc}/${GITHUB_REF:-main}/backup"
+RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main/backup"
 
 # ---------------------------------------------------------------- helpers
 c_info=$'\e[1;34m'; c_ok=$'\e[1;32m'; c_warn=$'\e[1;33m'; c_err=$'\e[1;31m'; c_off=$'\e[0m'

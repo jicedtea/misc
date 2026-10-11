@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NUT (Network UPS Tools) installer for Proxmox VE / Debian
+# NUT (Network UPS Tools) installer for Debian / Ubuntu / Proxmox VE
 #
 #   server : the machine with the UPS USB cable. Runs driver + upsd + upsmon (primary)
 #   client : other machines. Runs upsmon (secondary), watching the server over the network
@@ -151,12 +151,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ $EUID -eq 0 ]] || die "Run as root"
-[[ -f /etc/debian_version ]] || die "Only Debian / Proxmox VE is supported"
+[[ -f /etc/debian_version ]] || die "Only Debian / Ubuntu / Proxmox VE is supported"
 [[ $ASSUME_YES -eq 1 ]] && INTERACTIVE=0
 if [[ -z $MODE ]]; then
 	[[ $INTERACTIVE -eq 1 ]] || usage 1
 	echo
-	echo "  NUT installer for Proxmox VE"
+	echo "  NUT installer for $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-Linux}")"
 	echo
 	choose MODE "Install mode" server 		"server|Server - this machine has the UPS USB cable" 		"client|Client - watch a UPS on another NUT server" 		"uninstall|Uninstall NUT"
 fi
@@ -267,7 +267,7 @@ EOF
 	cat >"$NUT_DIR/upsd.conf" <<EOF
 MAXAGE 15
 MAXCONN 1024
-# Listen on all addresses so clients can connect. Restrict with the Proxmox firewall if needed.
+# Listen on all addresses so clients can connect. Restrict with a firewall if needed.
 LISTEN 0.0.0.0 3493
 LISTEN :: 3493
 EOF
@@ -434,7 +434,7 @@ if STATUS=$(upsc "$TARGET" ups.status 2>/dev/null); then
 else
 	warn "Cannot read $TARGET. Check: upsc $TARGET / journalctl -u nut-monitor"
 	if [[ $MODE == client ]]; then
-		warn "Make sure port 3493/tcp on $SERVER_IP is reachable (Proxmox firewall)"
+		warn "Make sure port 3493/tcp on $SERVER_IP is reachable (firewall)"
 	fi
 fi
 

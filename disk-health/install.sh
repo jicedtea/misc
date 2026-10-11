@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# Downloads Disk Health Monitor from GitHub and installs it on Proxmox VE.
+# Downloads Disk Health Monitor from GitHub and installs it on
+# Debian / Ubuntu / Proxmox VE.
 #
-# Usage (on the Proxmox node, as root):
+# Usage (as root):
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
-#
-# Optional environment variables:
-#   GITHUB_REPO  user/repo on GitHub          (default: jicedtea/misc)
-#   GITHUB_REF   branch, tag or commit hash   (default: main)
-#   SUBDIR       subdirectory holding files   (default: disk-health, "" = repo root)
 
 set -euo pipefail
 
-GITHUB_REPO="${GITHUB_REPO:-jicedtea/misc}"
-GITHUB_REF="${GITHUB_REF:-main}"
-SUBDIR="${SUBDIR-disk-health}"
-BASE_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_REF}${SUBDIR:+/${SUBDIR%/}}"
+BASE_URL="https://raw.githubusercontent.com/jicedtea/misc/main/disk-health"
 
 TIMERS=(disk-health-check disk-health-report disk-selftest-short disk-selftest-long)
 UNIT_FILES=()
@@ -73,7 +66,20 @@ $(systemctl list-timers 'disk-*' --no-pager 2>/dev/null || true)
 Try it now:
   /usr/local/bin/disk-health-monitor.sh check
 
+EOF
+if command -v pveversion >/dev/null 2>&1; then
+    cat <<EOF
 IMPORTANT: make sure Datacenter -> Notifications has at least one
 target/matcher matching type=system-mail (and root@pam has a valid email).
 See README.md in the repo if this is not configured yet.
 EOF
+else
+    cat <<EOF
+IMPORTANT: alerts are mailed to root with sendmail. Make sure that mail
+reaches you:
+  - install an MTA if missing: apt install postfix   (or msmtp-mta)
+  - forward root's mail: add "root: you@example.com" to /etc/aliases, run newaliases
+  - or set MAIL_TO="you@example.com" in /usr/local/bin/disk-health-monitor.sh
+EOF
+    command -v sendmail >/dev/null 2>&1 || echo "WARNING: sendmail not found, no mail can be sent yet."
+fi

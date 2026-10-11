@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 #
 # disk-health-monitor.sh
-# SMART health monitoring for SATA/NVMe disks on Proxmox VE.
-# Alerts and reports are sent with "sendmail" to root; Proxmox feeds that mail
-# into its notification stack as type "system-mail" and routes it according to
-# the configured matchers (Datacenter -> Notifications).
+# SMART health monitoring for SATA/NVMe disks on Debian / Ubuntu / Proxmox VE.
+# Alerts and reports are sent with "sendmail" to MAIL_TO (root by default).
+#   Proxmox VE   : root's mail is fed into the notification stack as type
+#                  "system-mail" and routed by Datacenter -> Notifications.
+#   Debian/Ubuntu: needs an MTA (postfix, msmtp-mta...) that delivers or
+#                  forwards root's mail (e.g. "root: you@example.com" in /etc/aliases),
+#                  or set MAIL_TO to an email address.
 #
 # Usage:
 #   disk-health-monitor.sh check       # health check + last self-test result;
@@ -17,7 +20,7 @@
 set -uo pipefail
 
 # ================= CONFIG =================
-MAIL_TO="root"                 # Proxmox forwards root's mail into the notification stack
+MAIL_TO="root"                 # Proxmox: routed by its notification stack. Elsewhere: an address or a forwarded local user
 TEMP_WARN=55                   # Temperature warning threshold (C)
 TEMP_CRIT=65                   # Temperature critical threshold (C)
 NVME_USED_WARN=85              # NVMe "Percentage Used" warning threshold (%)
@@ -39,11 +42,12 @@ command -v smartctl >/dev/null 2>&1 || {
     exit 1
 }
 command -v sendmail >/dev/null 2>&1 || {
-    echo "Error: sendmail not found (an MTA such as postfix is required for Proxmox to forward mail)." >&2
+    echo "Error: sendmail not found. Install an MTA, e.g.: apt install postfix (or msmtp-mta)" >&2
     exit 1
 }
 
 HOST="$(hostname -f 2>/dev/null || hostname)"
+SUBJECT_TAG=""; command -v pveversion >/dev/null 2>&1 && SUBJECT_TAG="[Proxmox]"
 HASH_FILE="$STATE_DIR/last_issue_hash"
 REPORT_FILE="$STATE_DIR/last_report.txt"
 mkdir -p "$STATE_DIR"
@@ -56,8 +60,8 @@ log() { logger -t "$LOG_TAG" -- "$*"; }
 
 send_mail() {
     local subject="$1" body="$2"
-    printf 'To: %s\nFrom: %s@%s\nSubject: [Proxmox][%s] %s\nContent-Type: text/plain; charset=UTF-8\n\n%s\n' \
-        "$MAIL_TO" "$LOG_TAG" "$HOST" "$HOST" "$subject" "$body" | sendmail -t
+    printf 'To: %s\nFrom: %s@%s\nSubject: %s[%s] %s\nContent-Type: text/plain; charset=UTF-8\n\n%s\n' \
+        "$MAIL_TO" "$LOG_TAG" "$HOST" "$SUBJECT_TAG" "$HOST" "$subject" "$body" | sendmail -t
 }
 
 is_num() { [[ "${1:-}" =~ ^[0-9]+$ ]]; }

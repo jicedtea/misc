@@ -1,0 +1,19 @@
+[Unit]
+Description=Restore blacklist ipset on boot, save it on shutdown
+# Must exist before UFW loads before.rules, which references the set.
+# No network dependency: UFW itself starts before network-pre.target.
+DefaultDependencies=no
+After=local-fs.target
+Before=network-pre.target ufw.service iptables.service netfilter-persistent.service
+Wants=network-pre.target
+Conflicts=shutdown.target
+Before=shutdown.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/bin/manage_ipset.sh restore
+ExecStop=/usr/local/bin/manage_ipset.sh save
+
+[Install]
+WantedBy=multi-user.target

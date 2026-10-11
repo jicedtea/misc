@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Installer for every tool in this repo. Pick the ones you want, each tool then
 # runs its own installer (and its own wizard). Only the tools for this machine
-# are offered: Proxmox tools on Proxmox/Debian, Synology tools on Synology DSM.
+# are offered: Debian/Ubuntu tools everywhere except Synology, Proxmox-only tools
+# on Proxmox VE, Synology tools on Synology DSM.
 #
 # Usage:
 #   bash install.sh                       (menu: pick the tools)
@@ -12,36 +13,36 @@
 # Via curl:
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)"
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh disk-health nut
-#
-# Optional environment variables (passed on to the tool installers):
-#   GITHUB_REPO  user/repo on GitHub          (default: jicedtea/misc)
-#   GITHUB_REF   branch, tag or commit hash   (default: main)
 set -euo pipefail
 
-export GITHUB_REPO="${GITHUB_REPO:-jicedtea/misc}"
-export GITHUB_REF="${GITHUB_REF:-main}"
-RAW_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_REF"
+RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
 
-# name|description|arguments for its install.sh|platform (pve or syno)
+# name|description|arguments for its install.sh|platform
+#   linux = Debian / Ubuntu / Proxmox VE, pve = Proxmox VE only, syno = Synology DSM
 # (gpu-passthrough last: it needs a reboot)
 ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
-	"disk-health|SMART monitor, self-tests and reports via Proxmox notifications||pve"
-	"nut|Network UPS Tools server/client for clean shutdown on power loss||pve"
-	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|pve"
+	"disk-health|SMART monitor, self-tests and mail alerts / weekly reports||linux"
+	"nut|Network UPS Tools server/client for clean shutdown on power loss||linux"
+	"ipset|UFW blacklist of known-bad IPs (stamparm/ipsum), updated daily|install|linux"
+	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
 )
 
-# Synology DSM -> only syno tools. Anything else (Proxmox / Debian) -> only pve tools
+# Platforms whose tools this machine can run
 if [[ -f /etc/synoinfo.conf ]] && grep -qs productversion /etc.defaults/VERSION; then
-	PLATFORM=syno; PLATFORM_NAME="Synology DSM"
+	PLATFORMS=(syno); PLATFORM_NAME="Synology DSM"
+elif command -v pveversion >/dev/null 2>&1; then
+	PLATFORMS=(linux pve); PLATFORM_NAME="Proxmox VE"
 else
-	PLATFORM=pve; PLATFORM_NAME="Proxmox VE"
+	PLATFORMS=(linux)
+	PLATFORM_NAME=$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-Linux}" || echo Linux)
+	[[ -f /etc/debian_version ]] || echo "Warning: only Debian / Ubuntu based systems are supported" >&2
 fi
 TOOLS=()
 for t in "${ALL_TOOLS[@]}"; do
-	[[ ${t##*|} == "$PLATFORM" ]] && TOOLS+=("$t")
+	[[ " ${PLATFORMS[*]} " == *" ${t##*|} "* ]] && TOOLS+=("$t")
 done
 
 # ---------------------------------------------------------------- helpers
@@ -105,7 +106,7 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-[[ $EUID -eq 0 ]] || die "Run as root$([[ $PLATFORM == syno ]] && echo ' (on DSM: sudo -i)')"
+[[ $EUID -eq 0 ]] || die "Run as root$([[ ${PLATFORMS[0]} == syno ]] && echo ' (on DSM: sudo -i)' || echo ' (sudo -i)')"
 
 # ---------------------------------------------------------------- menu
 pick_whiptail() {
