@@ -1,0 +1,7 @@
+[Unit]
+Description=Weekly disk health report (Proxmox)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/disk-health-monitor.sh report

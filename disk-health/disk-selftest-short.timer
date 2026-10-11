@@ -1,0 +1,10 @@
+[Unit]
+Description=Run SMART short self-test weekly (Sunday 02:00)
+
+[Timer]
+OnCalendar=Sun *-*-* 02:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
