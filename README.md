@@ -1,19 +1,21 @@
 # misc
 
-Small tools and installers for Proxmox VE / Debian homelab nodes. Each tool
-lives in its own folder with its own `install.sh` and `README.md`.
+Small tools and installers for homelab machines (Proxmox VE / Debian and
+Synology DSM). Each tool lives in its own folder with its own `install.sh` and
+`README.md`.
 
-| Tool | What it does |
-|---|---|
-| [backup](backup/) | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
-| [disk-health](disk-health/) | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
-| [gpu-passthrough](gpu-passthrough/) | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
-| [nut](nut/) | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
+| Tool | Platform | What it does |
+|---|---|---|
+| [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
+| [disk-health](disk-health/) | Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
+| [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
+| [nut](nut/) | Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
+| [synology-acme](synology-acme/) | Synology | Installs acme.sh, issues a certificate through a DNS API (Let's Encrypt / ZeroSSL) and deploys it to DSM. |
 
 ## Requirements
 
-- Proxmox VE 8/9 or Debian 12+
-- Root access on each node
+- Proxmox VE 8/9 or Debian 12+, or Synology DSM 7
+- Root access (on DSM: `sudo -i`)
 - `curl` to install from GitHub
 
 ## Quick start
@@ -25,6 +27,9 @@ Run on the node, as root.
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)"
 ```
+
+The installer detects the machine and only offers the tools for it: Proxmox
+tools on Proxmox / Debian, Synology tools on Synology DSM.
 
 A checklist lets you pick the tools (Space to select, Enter to install). Each
 selected tool then runs its own installer and wizard, one after the other.
@@ -57,6 +62,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/gpu-p
 
 # NUT (interactive wizard: server / client / uninstall)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
+
+# acme.sh for Synology DSM (run on the NAS after sudo -i)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/synology-acme/install.sh)"
 ```
 
 From a local checkout: `bash nut/install.sh` and `bash gpu-passthrough/install.sh` work as-is. `disk-health/install.sh`
@@ -74,5 +82,6 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── backup/            vzdump hook script + installer (rclone upload)
 ├── disk-health/       SMART monitor script, systemd services/timers, installer
 ├── gpu-passthrough/   GPU / iGPU / GVT-g passthrough host setup
-└── nut/               NUT installer for UPS server/client
+├── nut/               NUT installer for UPS server/client
+└── synology-acme/     acme.sh installer for Synology DSM
 ```

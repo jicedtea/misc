@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Installer for every tool in this repo. Pick the ones you want, each tool then
-# runs its own installer (and its own wizard).
+# runs its own installer (and its own wizard). Only the tools for this machine
+# are offered: Proxmox tools on Proxmox/Debian, Synology tools on Synology DSM.
 #
 # Usage:
 #   bash install.sh                       (menu: pick the tools)
@@ -21,13 +22,26 @@ export GITHUB_REPO="${GITHUB_REPO:-jicedtea/misc}"
 export GITHUB_REF="${GITHUB_REF:-main}"
 RAW_URL="https://raw.githubusercontent.com/$GITHUB_REPO/$GITHUB_REF"
 
-# name|description|arguments for its install.sh   (gpu-passthrough last: it needs a reboot)
-TOOLS=(
-	"backup|vzdump hook: upload host config + dumps to an rclone remote|install"
-	"disk-health|SMART monitor, self-tests and reports via Proxmox notifications|"
-	"nut|Network UPS Tools server/client for clean shutdown on power loss|"
-	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup"
+# name|description|arguments for its install.sh|platform (pve or syno)
+# (gpu-passthrough last: it needs a reboot)
+ALL_TOOLS=(
+	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
+	"disk-health|SMART monitor, self-tests and reports via Proxmox notifications||pve"
+	"nut|Network UPS Tools server/client for clean shutdown on power loss||pve"
+	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
+	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
 )
+
+# Synology DSM -> only syno tools. Anything else (Proxmox / Debian) -> only pve tools
+if [[ -f /etc/synoinfo.conf ]] && grep -qs productversion /etc.defaults/VERSION; then
+	PLATFORM=syno; PLATFORM_NAME="Synology DSM"
+else
+	PLATFORM=pve; PLATFORM_NAME="Proxmox VE"
+fi
+TOOLS=()
+for t in "${ALL_TOOLS[@]}"; do
+	[[ ${t##*|} == "$PLATFORM" ]] && TOOLS+=("$t")
+done
 
 # ---------------------------------------------------------------- helpers
 c_info=$'\e[1;34m'; c_ok=$'\e[1;32m'; c_warn=$'\e[1;33m'; c_err=$'\e[1;31m'; c_off=$'\e[0m'
@@ -36,7 +50,7 @@ ok()   { echo "${c_ok}[OK]${c_off} $*"; }
 warn() { echo "${c_warn}[WARN]${c_off} $*" >&2; }
 die()  { echo "${c_err}[ERROR]${c_off} $*" >&2; exit 1; }
 
-tool_field() {   # tool_field NAME INDEX(1=name 2=desc 3=args)
+tool_field() {   # tool_field NAME INDEX(1=name 2=desc 3=args 4=platform)
 	local t
 	for t in "${TOOLS[@]}"; do
 		[[ ${t%%|*} == "$1" ]] && { cut -d'|' -f"$2" <<<"$t"; return 0; }
@@ -52,7 +66,7 @@ Usage: $0 [all | TOOL...] [--list]
 Without arguments a menu lets you pick the tools to install.
 Each selected tool then runs its own installer and wizard.
 
-Tools:
+Tools for this machine ($PLATFORM_NAME):
 EOF
 	for t in "${TOOLS[@]}"; do
 		printf '  %-16s %s\n' "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
@@ -80,12 +94,17 @@ while [[ $# -gt 0 ]]; do
 		all) mapfile -t SELECTED < <(tool_names); shift ;;
 		-*) die "Unknown option: $1" ;;
 		*)
-			tool_field "$1" 1 >/dev/null || die "Unknown tool: $1 (see --list)"
+			if ! tool_field "$1" 1 >/dev/null; then
+				for t in "${ALL_TOOLS[@]}"; do
+					[[ ${t%%|*} == "$1" ]] && die "$1 is not available on $PLATFORM_NAME"
+				done
+				die "Unknown tool: $1 (see --list)"
+			fi
 			SELECTED+=("$1"); shift ;;
 	esac
 done
 
-[[ $EUID -eq 0 ]] || die "Run as root"
+[[ $EUID -eq 0 ]] || die "Run as root$([[ $PLATFORM == syno ]] && echo ' (on DSM: sudo -i)')"
 
 # ---------------------------------------------------------------- menu
 pick_whiptail() {
@@ -93,7 +112,7 @@ pick_whiptail() {
 	for t in "${TOOLS[@]}"; do
 		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")" OFF)
 	done
-	out=$(whiptail --title "Proxmox tools" --separate-output \
+	out=$(whiptail --title "$PLATFORM_NAME tools" --separate-output \
 		--checklist "Space = select, Enter = install" 16 100 ${#TOOLS[@]} "${args[@]}" \
 		3>&1 1>/dev/tty 2>&3 </dev/tty) || die "Cancelled"
 	mapfile -t SELECTED <<<"$out"
@@ -102,7 +121,7 @@ pick_whiptail() {
 pick_text() {
 	local i=1 t picks n names
 	echo
-	echo "  Proxmox tools installer"
+	echo "  $PLATFORM_NAME tools installer"
 	echo
 	for t in "${TOOLS[@]}"; do
 		printf '    %d) %-16s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
