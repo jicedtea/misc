@@ -82,9 +82,9 @@ ask_valid() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 ufw_active() { ufw status 2>/dev/null | grep -q '^Status: active'; }

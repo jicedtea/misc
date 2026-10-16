@@ -79,9 +79,9 @@ choose() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 read_sys() { cat "$CPUFREQ/$1" 2>/dev/null || true; }

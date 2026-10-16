@@ -125,9 +125,9 @@ choose() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 is_synology() { [[ -f /etc/synoinfo.conf ]] && grep -qs productversion /etc.defaults/VERSION; }

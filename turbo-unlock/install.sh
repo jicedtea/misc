@@ -61,9 +61,9 @@ ask() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 mhz() { local k; k=$(cat "$CPUFREQ/$1" 2>/dev/null) && echo "$((k / 1000)) MHz" || echo unknown; }

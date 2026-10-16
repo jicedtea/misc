@@ -117,9 +117,9 @@ choose() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 gen_pass() { head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n'; }

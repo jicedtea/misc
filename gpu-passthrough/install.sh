@@ -127,15 +127,15 @@ choose() {
 }
 
 confirm() {
-	local __ans
-	ask __ans "$1 (Y/n)" "Y"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (Y/n)" "Y"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 confirm_no() {
-	local __ans
-	ask __ans "$1 (y/N)" "N"
-	[[ $__ans =~ ^[Yy] ]]
+	local __yn
+	ask __yn "$1 (y/N)" "N"
+	[[ $__yn =~ ^[Yy] ]]
 }
 
 # ask_yn VAR "Question" current(0|1)   -> VAR = 0|1, default = current
