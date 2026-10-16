@@ -12,6 +12,7 @@
 # Usage:
 #   disk-health-monitor.sh check       # health check + last self-test result;
 #                                      # mails only on new issues / on recovery
+#                                      # (run in a terminal it also prints the report)
 #   disk-health-monitor.sh report      # always mail a full report (weekly)
 #   disk-health-monitor.sh test-short  # run a SMART short self-test on all disks,
 #                                      # wait for it to finish, then mail the report
@@ -55,8 +56,16 @@ mkdir -p "$STATE_DIR"
 declare -a ISSUES=() REPORT_LINES=()
 declare -A LAST_TEST=()        # device -> most recent self-test log entry
 REPORT=""
+INTERACTIVE=0; [[ -t 1 ]] && INTERACTIVE=1   # run by hand: also print to the terminal
 
-log() { logger -t "$LOG_TAG" -- "$*"; }
+log() {
+    logger -t "$LOG_TAG" -- "$*"
+    (( INTERACTIVE )) && echo "==> $*"
+    return 0
+}
+
+# Run by hand: show the report (systemd runs stay quiet, the report goes by mail / to $REPORT_FILE).
+show_report() { (( INTERACTIVE )) && printf '%s\n\n' "$REPORT"; return 0; }
 
 send_mail() {
     local subject="$1" body="$2"
@@ -283,11 +292,13 @@ case "$MODE" in
         ;;
     report)
         run_checks
+        show_report
         send_mail "Weekly disk health report" "$REPORT"
         log "Sent weekly report"
         ;;
     check)
         run_checks
+        show_report
         notify_changes
         ;;
 esac

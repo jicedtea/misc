@@ -100,7 +100,7 @@ pvesh create /cluster/notifications/matchers \
 ## Run manually
 
 ```bash
-/usr/local/bin/disk-health-monitor.sh check       # check and alert on new problems
+/usr/local/bin/disk-health-monitor.sh check       # check, print the report, mail only on new problems / recovery
 /usr/local/bin/disk-health-monitor.sh report      # send a full report right now
 /usr/local/bin/disk-health-monitor.sh test-short  # run a short self-test, then mail the report
 /usr/local/bin/disk-health-monitor.sh test-long   # run a long self-test, then mail the report
