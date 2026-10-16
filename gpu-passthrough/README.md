@@ -77,7 +77,8 @@ Find the GPU address with `lspci -nnk | grep -A3 -E "VGA|3D|Display"`.
    | Option | When |
    |---|---|
    | `intel_iommu=on` | every Intel host |
-   | `i915.enable_gvt=1 iommu=pt` | GVT-g |
+   | `iommu=pt` | every host: devices the host keeps skip IOMMU translation (less overhead), passed-through devices stay isolated |
+   | `i915.enable_gvt=1` | GVT-g |
 
    On a systemd-boot host (ZFS on UEFI) the same options also go into
    `/etc/kernel/cmdline`, which is what that bootloader reads.

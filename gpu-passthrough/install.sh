@@ -482,10 +482,12 @@ fi
 [[ -n $BLACKLIST ]] || BLACKLIST=0
 [[ ${#GPUS[@]} -gt 0 || $BIND -eq 0 ]] || die "--bind needs --gpu"
 
-# Kernel options: intel_iommu=on on every Intel host, plus what GVT-g needs
+# Kernel options: intel_iommu=on on every Intel host, iommu=pt everywhere (host devices
+# skip IOMMU translation, less overhead; passed-through devices stay isolated), plus GVT-g
 CMDLINE=()
 [[ $VENDOR == intel ]] && CMDLINE+=(intel_iommu=on)
-[[ $TYPE == gvt ]] && CMDLINE+=(i915.enable_gvt=1 iommu=pt)
+CMDLINE+=(iommu=pt)
+[[ $TYPE == gvt ]] && CMDLINE+=(i915.enable_gvt=1)
 
 MODULES=(vfio vfio_iommu_type1 vfio_pci)
 [[ $TYPE == gvt ]] && MODULES+=(kvmgt)
