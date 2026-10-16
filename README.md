@@ -12,6 +12,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [ipset](ipset/) | Debian / Ubuntu / Proxmox (UFW) | Blocks known-bad IPs from [stamparm/ipsum](https://github.com/stamparm/ipsum) with an ipset and UFW rules. Restored at boot, updated daily. |
 | [nut](nut/) | Debian / Ubuntu / Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
+| [turbo-unlock](turbo-unlock/) | Debian / Ubuntu / Proxmox | Clears the BIOS turbo lock (MSR `0x1a0` bit 38) at every boot, e.g. Dell Wyse 5070 stuck at 1.5 GHz. |
 | [synology-acme](synology-acme/) | Synology | Installs acme.sh, issues a certificate through a DNS API (Let's Encrypt / ZeroSSL) and deploys it to DSM. |
 
 ## Requirements
@@ -34,7 +35,7 @@ The installer detects the machine and only offers the tools for it:
 
 | Machine | Tools offered |
 |---|---|
-| Debian / Ubuntu | cpupower, disk-health, ipset, nut |
+| Debian / Ubuntu | cpupower, disk-health, ipset, nut, turbo-unlock |
 | Proxmox VE | the above + backup, gpu-passthrough |
 | Synology DSM | synology-acme |
 
@@ -61,6 +62,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/backu
 
 # CPU governor at boot (lists the governors your CPU supports)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/cpupower/install.sh)"
+
+# Turbo unlock (Dell Wyse 5070 stuck at 1.5 GHz)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/turbo-unlock/install.sh)"
 
 # Disk Health Monitor
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
@@ -96,5 +100,6 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── gpu-passthrough/   GPU / iGPU / GVT-g passthrough host setup
 ├── ipset/             UFW IP blacklist (ipsum) with boot restore and daily update
 ├── nut/               NUT installer for UPS server/client
-└── synology-acme/     acme.sh installer for Synology DSM
+├── synology-acme/     acme.sh installer for Synology DSM
+└── turbo-unlock/      BIOS turbo lock fix at boot (systemd service)
 ```

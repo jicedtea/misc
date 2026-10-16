@@ -26,6 +26,7 @@ ALL_TOOLS=(
 	"nut|Network UPS Tools server/client for clean shutdown on power loss||linux"
 	"ipset|UFW blacklist of known-bad IPs (stamparm/ipsum), updated daily|install|linux"
 	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
+	"turbo-unlock|Clear the BIOS turbo lock (Dell Wyse 5070 stuck at 1.5 GHz) at every boot|install|linux"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
 )
