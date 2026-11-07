@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Installer for every tool in this repo. Pick the ones you want, each tool then
-# runs its own installer (and its own wizard). Only the tools for this machine
-# are offered: Debian/Ubuntu tools everywhere except Synology, Proxmox-only tools
-# on Proxmox VE, Synology tools on Synology DSM.
+# Installer for every tool in this repo. The menu runs one tool at a time with its
+# own wizard (install / check / uninstall) and comes back to the menu afterwards.
+# Only the tools for this machine are offered: Debian/Ubuntu tools everywhere
+# except Synology, Proxmox-only tools on Proxmox VE, Synology tools on Synology DSM.
 #
 # Usage:
-#   bash install.sh                       (menu: pick the tools)
+#   bash install.sh                       (menu)
 #   bash install.sh nut backup            (install these, no menu)
 #   bash install.sh all
 #   bash install.sh --list
@@ -19,7 +19,7 @@ RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
 
 # name|description|arguments for its install.sh|platform
 #   linux = Debian / Ubuntu / Proxmox VE, pve = Proxmox VE only, syno = Synology DSM
-# (gpu-passthrough last: it needs a reboot)
+# (gpu-passthrough and pcie-passthrough last: they need a reboot)
 ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
 	"disk-health|SMART monitor, self-tests and mail alerts / weekly reports||linux"
@@ -27,7 +27,9 @@ ALL_TOOLS=(
 	"ipset|UFW blacklist of known-bad IPs (stamparm/ipsum), updated daily|install|linux"
 	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
 	"turbo-unlock|Clear the BIOS turbo lock (Dell Wyse 5070 stuck at 1.5 GHz) at every boot|install|linux"
+	"docker-wait-disks|Docker waits for the data disks at boot, stays down if one is missing|install|linux"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
+	"pcie-passthrough|Dell Wyse 5070 PCIe slot passthrough fix: IOMMU, ACS, vfio-pci (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
 )
 
@@ -66,13 +68,14 @@ usage() {
 	cat <<EOF
 Usage: $0 [all | TOOL...] [--list]
 
-Without arguments a menu lets you pick the tools to install.
-Each selected tool then runs its own installer and wizard.
+Without arguments a menu lets you run the tools one at a time, each with
+its own wizard (install / check / uninstall), or install several at once.
+Tools given on the command line are installed one after the other.
 
 Tools for this machine ($PLATFORM_NAME):
 EOF
 	for t in "${TOOLS[@]}"; do
-		printf '  %-16s %s\n' "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		printf '  %-18s %s\n' "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
 	done
 	cat <<EOF
 
@@ -109,56 +112,6 @@ done
 
 [[ $EUID -eq 0 ]] || die "Run as root$([[ ${PLATFORMS[0]} == syno ]] && echo ' (on DSM: sudo -i)' || echo ' (sudo -i)')"
 
-# ---------------------------------------------------------------- menu
-pick_whiptail() {
-	local args=() t out
-	for t in "${TOOLS[@]}"; do
-		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")" OFF)
-	done
-	out=$(whiptail --title "$PLATFORM_NAME tools" --separate-output \
-		--checklist "Space = select, Enter = install" 16 100 ${#TOOLS[@]} "${args[@]}" \
-		3>&1 1>/dev/tty 2>&3 </dev/tty) || die "Cancelled"
-	mapfile -t SELECTED <<<"$out"
-}
-
-pick_text() {
-	local i=1 t picks n names
-	echo
-	echo "  $PLATFORM_NAME tools installer"
-	echo
-	for t in "${TOOLS[@]}"; do
-		printf '    %d) %-16s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
-		i=$((i + 1))
-	done
-	mapfile -t names < <(tool_names)
-	while :; do
-		read -r -p "  Tools to install, e.g. 1,3 or all: " picks </dev/tty || true
-		SELECTED=()
-		if [[ $picks == all ]]; then SELECTED=("${names[@]}"); break; fi
-		if [[ $picks =~ ^[0-9]+(,[0-9]+)*$ ]]; then
-			for n in ${picks//,/ }; do
-				((n >= 1 && n <= ${#names[@]})) || { SELECTED=(); break; }
-				SELECTED+=("${names[n - 1]}")
-			done
-			[[ ${#SELECTED[@]} -gt 0 ]] && break
-		fi
-		warn "Enter numbers from 1 to ${#names[@]} separated by commas, or all"
-	done
-}
-
-if [[ ${#SELECTED[@]} -eq 0 ]]; then
-	[[ $INTERACTIVE -eq 1 ]] || usage 1
-	if command -v whiptail >/dev/null; then pick_whiptail; else pick_text; fi
-fi
-SELECTED=("${SELECTED[@]//[[:space:]]/}")
-mapfile -t SELECTED < <(printf '%s\n' "${SELECTED[@]}" | grep -v '^$' || true)
-[[ ${#SELECTED[@]} -gt 0 ]] || die "Nothing selected"
-
-# Keep the order of TOOLS (gpu-passthrough last), drop duplicates
-ORDERED=()
-for n in $(tool_names); do
-	[[ " ${SELECTED[*]} " == *" $n "* ]] && ORDERED+=("$n")
-done
 
 # ---------------------------------------------------------------- source of the installers
 # From a local checkout use the files next to this script, otherwise download from GitHub
@@ -181,42 +134,185 @@ get_installer() {   # prints the path of NAME/install.sh
 	echo "$TMP_DIR/$name/install.sh"
 }
 
-echo
-info "Will install: ${ORDERED[*]}"
-if [[ -n $SCRIPT_DIR && -f $SCRIPT_DIR/${ORDERED[0]}/install.sh ]]; then
-	echo "    Source: local checkout ($SCRIPT_DIR)"
-else
-	echo "    Source: $RAW_URL"
-fi
+show_source() {
+	if [[ -n $SCRIPT_DIR && -f $SCRIPT_DIR/$(tool_names | head -n1)/install.sh ]]; then
+		echo "    Source: local checkout ($SCRIPT_DIR)"
+	else
+		echo "    Source: $RAW_URL"
+	fi
+}
 
 # ---------------------------------------------------------------- run
-DONE=(); FAILED=()
-for name in "${ORDERED[@]}"; do
+declare -A RESULT=()   # tool name -> OK / FAILED (last run)
+
+run_tool() {   # run_tool NAME [ARGS...]: runs NAME/install.sh, records the result in RESULT
+	local name=$1 file rc=0
+	shift
 	echo
 	echo "${c_info}================================================================${c_off}"
 	info "$name: $(tool_field "$name" 2)"
 	echo "${c_info}================================================================${c_off}"
-	read -r -a args <<<"$(tool_field "$name" 3)"
 	if ! file=$(get_installer "$name"); then
 		warn "Cannot download $RAW_URL/$name/install.sh"
-		FAILED+=("$name")
-		continue
+		RESULT[$name]=FAILED
+		return 1
 	fi
-	if (cd "$(dirname "$file")" && bash "$file" "${args[@]}"); then
-		DONE+=("$name")
+	(cd "$(dirname "$file")" && bash "$file" "$@") || rc=$?
+	if [[ $rc -eq 0 ]]; then
+		RESULT[$name]=OK
 	else
-		warn "$name installer failed (exit $?)"
-		FAILED+=("$name")
+		warn "$name installer failed (exit $rc)"
+		RESULT[$name]=FAILED
 	fi
-done
+	return "$rc"
+}
 
-# ---------------------------------------------------------------- summary
-echo
-info "Summary"
-for n in "${DONE[@]}";   do echo "    ${c_ok}OK${c_off}      $n"; done
-for n in "${FAILED[@]}"; do echo "    ${c_err}FAILED${c_off}  $n"; done
-if [[ " ${DONE[*]} " == *" gpu-passthrough "* ]]; then
+run_selected() {   # installs SELECTED with each tool's default arguments
+	local n ordered=() args
+	SELECTED=("${SELECTED[@]//[[:space:]]/}")
+	mapfile -t SELECTED < <(printf '%s\n' "${SELECTED[@]}" | grep -v '^$' || true)
+	[[ ${#SELECTED[@]} -gt 0 ]] || { warn "Nothing selected"; return 1; }
+
+	# Keep the order of TOOLS (passthrough tools last), drop duplicates
+	for n in $(tool_names); do
+		[[ " ${SELECTED[*]} " == *" $n "* ]] && ordered+=("$n")
+	done
 	echo
-	warn "gpu-passthrough: reboot the host to apply the kernel/module changes"
+	info "Will install: ${ordered[*]}"
+	for n in "${ordered[@]}"; do
+		read -r -a args <<<"$(tool_field "$n" 3)"
+		run_tool "$n" "${args[@]}" || true
+	done
+}
+
+summary() {
+	local n
+	[[ ${#RESULT[@]} -gt 0 ]] || return 0
+	echo
+	info "Summary"
+	for n in $(tool_names); do
+		case ${RESULT[$n]:-} in
+			OK)     echo "    ${c_ok}OK${c_off}      $n" ;;
+			FAILED) echo "    ${c_err}FAILED${c_off}  $n" ;;
+		esac
+	done
+	for n in gpu-passthrough pcie-passthrough; do
+		if [[ ${RESULT[$n]:-} == OK ]]; then
+			echo
+			warn "$n: reboot the host to apply the kernel/module changes"
+		fi
+	done
+}
+
+# ---------------------------------------------------------------- menu
+# Main menu: sets CHOICE to a tool name, "several" or "quit"
+menu_whiptail() {
+	local args=() t def=()
+	for t in "${TOOLS[@]}"; do
+		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")")
+	done
+	args+=(several "Install several tools at once" quit "Quit")
+	[[ -n $CHOICE ]] && def=(--default-item "$CHOICE")
+	CHOICE=$(whiptail --title "$PLATFORM_NAME tools" "${def[@]}" \
+		--menu "Pick a tool to run its wizard (install / check / uninstall)" \
+		$((${#TOOLS[@]} + 9)) 100 $((${#TOOLS[@]} + 2)) "${args[@]}" \
+		3>&1 1>/dev/tty 2>&3 </dev/tty) || CHOICE=quit
+}
+
+menu_text() {
+	local i=1 t pick names
+	mapfile -t names < <(tool_names)
+	echo
+	echo "  ${c_info}$PLATFORM_NAME tools${c_off}"
+	echo
+	for t in "${TOOLS[@]}"; do
+		printf '    %2d) %-18s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		i=$((i + 1))
+	done
+	echo
+	echo "     a) Install several tools at once"
+	echo "     q) Quit"
+	echo
+	while :; do
+		read -r -p "  Choose 1-${#names[@]}, a or q: " pick </dev/tty || pick=q
+		case $pick in
+			q|Q) CHOICE=quit; return ;;
+			a|A) CHOICE=several; return ;;
+		esac
+		if [[ $pick =~ ^[0-9]+$ ]] && ((pick >= 1 && pick <= ${#names[@]})); then
+			CHOICE=${names[pick - 1]}
+			return
+		fi
+		warn "Enter a number from 1 to ${#names[@]}, a or q"
+	done
+}
+
+# "Install several": sets SELECTED (empty = back to the menu)
+pick_whiptail() {
+	local args=() t out
+	for t in "${TOOLS[@]}"; do
+		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")" OFF)
+	done
+	SELECTED=()
+	out=$(whiptail --title "$PLATFORM_NAME tools" --separate-output \
+		--checklist "Space = select, Enter = install, Esc = back" 16 100 ${#TOOLS[@]} "${args[@]}" \
+		3>&1 1>/dev/tty 2>&3 </dev/tty) || return 0
+	mapfile -t SELECTED <<<"$out"
+}
+
+pick_text() {
+	local i=1 t picks n names
+	echo
+	for t in "${TOOLS[@]}"; do
+		printf '    %2d) %-18s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		i=$((i + 1))
+	done
+	mapfile -t names < <(tool_names)
+	while :; do
+		read -r -p "  Tools to install, e.g. 1,3 or all (Enter = back): " picks </dev/tty || picks=""
+		SELECTED=()
+		[[ -z $picks ]] && return 0
+		if [[ $picks == all ]]; then SELECTED=("${names[@]}"); break; fi
+		if [[ $picks =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+			for n in ${picks//,/ }; do
+				((n >= 1 && n <= ${#names[@]})) || { SELECTED=(); break; }
+				SELECTED+=("${names[n - 1]}")
+			done
+			[[ ${#SELECTED[@]} -gt 0 ]] && break
+		fi
+		warn "Enter numbers from 1 to ${#names[@]} separated by commas, or all"
+	done
+}
+
+main_menu() {
+	local CHOICE="" use_whiptail=0
+	command -v whiptail >/dev/null && use_whiptail=1
+	while :; do
+		if [[ $use_whiptail -eq 1 ]]; then menu_whiptail; else menu_text; fi
+		case $CHOICE in
+			quit) break ;;
+			several)
+				if [[ $use_whiptail -eq 1 ]]; then pick_whiptail; else pick_text; fi
+				[[ ${#SELECTED[@]} -gt 0 ]] || continue
+				run_selected || true
+				CHOICE=""
+				;;
+			*) run_tool "$CHOICE" || true ;;
+		esac
+		echo
+		read -r -p "  Press Enter to return to the menu..." _ </dev/tty || break
+	done
+}
+
+# ---------------------------------------------------------------- main
+echo
+info "$PLATFORM_NAME tools installer"
+show_source
+if [[ ${#SELECTED[@]} -gt 0 ]]; then
+	run_selected
+else
+	[[ $INTERACTIVE -eq 1 ]] || usage 1
+	main_menu
 fi
-[[ ${#FAILED[@]} -eq 0 ]]
+summary
+[[ " ${RESULT[*]} " != *" FAILED "* ]]
