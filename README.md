@@ -15,11 +15,13 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [ipset](ipset/) | Debian / Ubuntu / Proxmox (UFW) | Blocks known-bad IPs from [stamparm/ipsum](https://github.com/stamparm/ipsum) with an ipset and UFW rules. Restored at boot, updated daily. |
 | [nut](nut/) | Debian / Ubuntu / Proxmox | Installs and configures [Network UPS Tools](https://networkupstools.org/) as server or client, so machines shut down cleanly on power loss. |
 | [turbo-unlock](turbo-unlock/) | Debian / Ubuntu / Proxmox | Clears the BIOS turbo lock (MSR `0x1a0` bit 38) at every boot, e.g. Dell Wyse 5070 stuck at 1.5 GHz. |
+| [omv-shared-symlinks](omv-shared-symlinks/) | OpenMediaVault | Keeps a `/shared/<name>` symlink for every shared folder with a Salt state, so paths do not depend on disk UUIDs. |
+| [winpe-grub](winpe-grub/) | Debian / Ubuntu / Proxmox | Adds Hiren's BootCD PE (WinPE) to the GRUB menu: downloads the ISO and boots it from disk through wimboot. |
 | [synology-acme](synology-acme/) | Synology | Installs acme.sh, issues a certificate through a DNS API (Let's Encrypt / ZeroSSL) and deploys it to DSM. |
 
 ## Requirements
 
-- Debian 12+ / Ubuntu 22.04+, Proxmox VE 8/9, or Synology DSM 7
+- Debian 12+ / Ubuntu 22.04+, Proxmox VE 8/9, OpenMediaVault 7, or Synology DSM 7
 - Root access (`sudo -i`)
 - `curl` to install from GitHub
 
@@ -37,11 +39,13 @@ The installer detects the machine and only offers the tools for it:
 
 | Machine | Tools offered |
 |---|---|
-| Debian / Ubuntu | cpupower, disk-health, docker-wait-disks, ipset, nut, turbo-unlock |
+| Debian / Ubuntu | cpupower, disk-health, docker-wait-disks, ipset, nut, turbo-unlock, winpe-grub |
 | Proxmox VE | the above + backup, gpu-passthrough, pcie-passthrough |
+| OpenMediaVault | the Debian / Ubuntu tools + omv-shared-symlinks |
 | Synology DSM | synology-acme |
 
-A menu lists the tools. Picking one runs its own wizard (install / check /
+A menu lists the tools. Tools that only run on one OS show it in front of their
+description, such as `[Proxmox]`, `[OMV]` or `[Synology]`. Picking one runs its own wizard (install / check /
 uninstall, depending on the tool), then you are back in the menu to run another.
 "Install several tools at once" opens a checklist (Space to select, Enter to
 install) and runs the selected installers one after the other. A failed tool
@@ -88,6 +92,12 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/ipset
 # NUT (interactive wizard: server / client / uninstall)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/nut/install.sh)"
 
+# /shared/<name> symlinks for the OpenMediaVault shared folders (asks for the directory)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/omv-shared-symlinks/install.sh)"
+
+# Hiren's BootCD PE in the GRUB menu (downloads the ~3 GB ISO to /boot)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/winpe-grub/install.sh)"
+
 # acme.sh for Synology DSM (run on the NAS after sudo -i)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/synology-acme/install.sh)"
 ```
@@ -103,15 +113,17 @@ always downloads its files from GitHub, so use the manual install steps in
 
 ```
 .
-├── install.sh         installer for all tools (pick from a menu)
-├── backup/            vzdump hook script + installer (rclone upload)
-├── cpupower/          CPU governor at boot (systemd service)
-├── disk-health/       SMART monitor script, systemd services/timers, installer
-├── docker-wait-disks/ Docker waits for the data disks at boot (systemd service)
-├── gpu-passthrough/   GPU / iGPU / GVT-g passthrough host setup
-├── ipset/             UFW IP blacklist (ipsum) with boot restore and daily update
-├── nut/               NUT installer for UPS server/client
-├── pcie-passthrough/  Dell Wyse 5070 PCIe slot passthrough (vfio-pci, ACS, D3 fix)
-├── synology-acme/     acme.sh installer for Synology DSM
-└── turbo-unlock/      BIOS turbo lock fix at boot (systemd service)
+├── install.sh           installer for all tools (pick from a menu)
+├── backup/              vzdump hook script + installer (rclone upload)
+├── cpupower/            CPU governor at boot (systemd service)
+├── disk-health/         SMART monitor script, systemd services/timers, installer
+├── docker-wait-disks/   Docker waits for the data disks at boot (systemd service)
+├── gpu-passthrough/     GPU / iGPU / GVT-g passthrough host setup
+├── ipset/               UFW IP blacklist (ipsum) with boot restore and daily update
+├── nut/                 NUT installer for UPS server/client
+├── omv-shared-symlinks/ /shared/<name> symlinks for OMV shared folders (Salt state)
+├── pcie-passthrough/    Dell Wyse 5070 PCIe slot passthrough (vfio-pci, ACS, D3 fix)
+├── synology-acme/       acme.sh installer for Synology DSM
+├── turbo-unlock/        BIOS turbo lock fix at boot (systemd service)
+└── winpe-grub/          Hiren's BootCD PE (WinPE ISO) in the GRUB menu via wimboot
 ```

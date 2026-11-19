@@ -2,7 +2,8 @@
 # Installer for every tool in this repo. The menu runs one tool at a time with its
 # own wizard (install / check / uninstall) and comes back to the menu afterwards.
 # Only the tools for this machine are offered: Debian/Ubuntu tools everywhere
-# except Synology, Proxmox-only tools on Proxmox VE, Synology tools on Synology DSM.
+# except Synology, Proxmox-only tools on Proxmox VE, OMV-only tools on OpenMediaVault,
+# Synology tools on Synology DSM.
 #
 # Usage:
 #   bash install.sh                       (menu)
@@ -18,7 +19,8 @@ set -euo pipefail
 RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
 
 # name|description|arguments for its install.sh|platform
-#   linux = Debian / Ubuntu / Proxmox VE, pve = Proxmox VE only, syno = Synology DSM
+#   linux = Debian / Ubuntu / Proxmox VE / OpenMediaVault, pve = Proxmox VE only,
+#   omv = OpenMediaVault only, syno = Synology DSM
 # (gpu-passthrough and pcie-passthrough last: they need a reboot)
 ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
@@ -28,6 +30,8 @@ ALL_TOOLS=(
 	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
 	"turbo-unlock|Clear the BIOS turbo lock (Dell Wyse 5070 stuck at 1.5 GHz) at every boot|install|linux"
 	"docker-wait-disks|Docker waits for the data disks at boot, stays down if one is missing|install|linux"
+	"omv-shared-symlinks|/shared/<name> symlink for every OpenMediaVault shared folder|install|omv"
+	"winpe-grub|Hiren's BootCD PE (WinPE) in the GRUB menu, booted from the ISO|install|linux"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"pcie-passthrough|Dell Wyse 5070 PCIe slot passthrough fix: IOMMU, ACS, vfio-pci (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
@@ -38,15 +42,28 @@ if [[ -f /etc/synoinfo.conf ]] && grep -qs productversion /etc.defaults/VERSION;
 	PLATFORMS=(syno); PLATFORM_NAME="Synology DSM"
 elif command -v pveversion >/dev/null 2>&1; then
 	PLATFORMS=(linux pve); PLATFORM_NAME="Proxmox VE"
+elif command -v omv-salt >/dev/null 2>&1; then
+	PLATFORMS=(linux omv); PLATFORM_NAME="OpenMediaVault"
 else
 	PLATFORMS=(linux)
 	PLATFORM_NAME=$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-Linux}" || echo Linux)
 	[[ -f /etc/debian_version ]] || echo "Warning: only Debian / Ubuntu based systems are supported" >&2
 fi
+# Tools bound to one OS show it in front of their description, e.g. "[Proxmox] ..."
+platform_tag() {
+	case $1 in
+		pve)  echo "[Proxmox] " ;;
+		omv)  echo "[OMV] " ;;
+		syno) echo "[Synology] " ;;
+	esac
+}
 TOOLS=()
 for t in "${ALL_TOOLS[@]}"; do
-	[[ " ${PLATFORMS[*]} " == *" ${t##*|} "* ]] && TOOLS+=("$t")
+	[[ " ${PLATFORMS[*]} " == *" ${t##*|} "* ]] || continue
+	IFS='|' read -r t_name t_desc t_args t_plat <<<"$t"
+	TOOLS+=("$t_name|$(platform_tag "$t_plat")$t_desc|$t_args|$t_plat")
 done
+unset t_name t_desc t_args t_plat
 
 # ---------------------------------------------------------------- helpers
 c_info=$'\e[1;34m'; c_ok=$'\e[1;32m'; c_warn=$'\e[1;33m'; c_err=$'\e[1;31m'; c_off=$'\e[0m'
@@ -75,7 +92,7 @@ Tools given on the command line are installed one after the other.
 Tools for this machine ($PLATFORM_NAME):
 EOF
 	for t in "${TOOLS[@]}"; do
-		printf '  %-18s %s\n' "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		printf '  %-20s %s\n' "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
 	done
 	cat <<EOF
 
@@ -226,7 +243,7 @@ menu_text() {
 	echo "  ${c_info}$PLATFORM_NAME tools${c_off}"
 	echo
 	for t in "${TOOLS[@]}"; do
-		printf '    %2d) %-18s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		printf '    %2d) %-20s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
 		i=$((i + 1))
 	done
 	echo
@@ -264,7 +281,7 @@ pick_text() {
 	local i=1 t picks n names
 	echo
 	for t in "${TOOLS[@]}"; do
-		printf '    %2d) %-18s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
+		printf '    %2d) %-20s %s\n' "$i" "${t%%|*}" "$(cut -d'|' -f2 <<<"$t")"
 		i=$((i + 1))
 	done
 	mapfile -t names < <(tool_names)
