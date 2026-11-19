@@ -223,17 +223,40 @@ summary() {
 
 # ---------------------------------------------------------------- menu
 # Main menu: sets CHOICE to a tool name, "several" or "quit"
-menu_whiptail() {
-	local args=() t def=()
+# whiptail draws the list right against the box: every tag and description gets a
+# space on each side, and the box is sized to the longest line (capped to the terminal).
+# Tags come back with the leading space, callers strip it.
+WT_ARGS=()
+WT_W=0
+wt_items() {   # wt_items EXTRA_WIDTH [STATE]: fills WT_ARGS / WT_W from TOOLS (STATE = OFF for a checklist)
+	local extra=$1 state=${2:-} t name desc n=0 d=0 cols
+	WT_ARGS=()
 	for t in "${TOOLS[@]}"; do
-		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")")
+		IFS='|' read -r name desc _ <<<"$t"
+		WT_ARGS+=(" $name" "$desc ")
+		[[ -n $state ]] && WT_ARGS+=("$state")
+		((${#name} > n)) && n=${#name}
+		((${#desc} > d)) && d=${#desc}
 	done
-	args+=(several "Install several tools at once" quit "Quit")
-	[[ -n $CHOICE ]] && def=(--default-item "$CHOICE")
-	CHOICE=$(whiptail --title "$PLATFORM_NAME tools" "${def[@]}" \
+	cols=$({ stty size </dev/tty; } 2>/dev/null | awk '{print $2}')
+	[[ $cols =~ ^[0-9]+$ ]] || cols=100
+	# 2 padding spaces + 1 gap between the columns + borders and inner margins
+	WT_W=$((n + d + 2 + 1 + extra))
+	((WT_W > cols - 2)) && WT_W=$((cols - 2))
+	((WT_W < 60)) && WT_W=60
+	return 0
+}
+
+menu_whiptail() {
+	local def=()
+	wt_items 8
+	WT_ARGS+=(" several" "Install several tools at once " " quit" "Quit ")
+	[[ -n $CHOICE ]] && def=(--default-item " $CHOICE")
+	CHOICE=$(whiptail --title " $PLATFORM_NAME tools " "${def[@]}" \
 		--menu "Pick a tool to run its wizard (install / check / uninstall)" \
-		$((${#TOOLS[@]} + 9)) 100 $((${#TOOLS[@]} + 2)) "${args[@]}" \
+		$((${#TOOLS[@]} + 9)) "$WT_W" $((${#TOOLS[@]} + 2)) "${WT_ARGS[@]}" \
 		3>&1 1>/dev/tty 2>&3 </dev/tty) || CHOICE=quit
+	CHOICE=${CHOICE# }
 }
 
 menu_text() {
@@ -266,15 +289,14 @@ menu_text() {
 
 # "Install several": sets SELECTED (empty = back to the menu)
 pick_whiptail() {
-	local args=() t out
-	for t in "${TOOLS[@]}"; do
-		args+=("${t%%|*}" "$(cut -d'|' -f2 <<<"$t")" OFF)
-	done
+	local out
+	wt_items 12 OFF   # 4 more for the "[ ] " box
 	SELECTED=()
-	out=$(whiptail --title "$PLATFORM_NAME tools" --separate-output \
-		--checklist "Space = select, Enter = install, Esc = back" 16 100 ${#TOOLS[@]} "${args[@]}" \
+	out=$(whiptail --title " $PLATFORM_NAME tools " --separate-output \
+		--checklist "Space = select, Enter = install, Esc = back" $((${#TOOLS[@]} + 8)) "$WT_W" ${#TOOLS[@]} "${WT_ARGS[@]}" \
 		3>&1 1>/dev/tty 2>&3 </dev/tty) || return 0
 	mapfile -t SELECTED <<<"$out"
+	SELECTED=("${SELECTED[@]# }")
 }
 
 pick_text() {
