@@ -13,7 +13,7 @@
 #
 # Via curl:
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)"
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh disk-health nut
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh nut cpupower
 set -euo pipefail
 
 RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
@@ -24,7 +24,7 @@ RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
 # (gpu-passthrough and pcie-passthrough last: they need a reboot)
 ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
-	"disk-health|SMART monitor, self-tests and mail alerts / weekly reports||linux"
+	"disk-health|SMART monitor, self-tests and alerts / weekly reports via PVE notifications||pve"
 	"nut|Network UPS Tools server/client for clean shutdown on power loss||linux"
 	"ipset|UFW blacklist of known-bad IPs (stamparm/ipsum), updated daily|install|linux"
 	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
@@ -99,7 +99,7 @@ EOF
 Examples:
   $0
   $0 all
-  $0 disk-health nut
+  $0 nut cpupower
 EOF
 	exit "${1:-0}"
 }

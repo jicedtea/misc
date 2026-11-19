@@ -1,10 +1,9 @@
 # Disk Health Monitor
 
 Monitors SMART data of SATA/NVMe disks, alerts as soon as a problem is found,
-sends a full report after every SMART self-test and once a week. Works on
-Debian / Ubuntu / Proxmox VE. Mail goes to `root` with `sendmail`: on Proxmox
-VE it goes through the Proxmox notification system, elsewhere through the
-local MTA (see [Debian / Ubuntu](#debian--ubuntu-mail-delivery)).
+sends a full report after every SMART self-test and once a week. For
+**Proxmox VE** only: mail goes to `root` with `sendmail` and through the Proxmox
+notification system. The installer refuses to run elsewhere.
 
 ## Why sendmail instead of the notification API?
 
@@ -17,7 +16,7 @@ routed to whatever targets you configured under Datacenter -> Notifications
 
 ## Install from GitHub (recommended)
 
-Run on each machine, as root:
+Run on each Proxmox VE node, as root:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
@@ -60,20 +59,7 @@ systemctl enable --now disk-health-check.timer disk-health-report.timer \
     disk-selftest-short.timer disk-selftest-long.timer
 ```
 
-## Debian / Ubuntu: mail delivery
-
-Without Proxmox, `root`'s mail needs an MTA that delivers it somewhere you read:
-
-```bash
-apt install postfix            # or msmtp-mta for a simple relay through your mail provider
-echo "root: you@example.com" >> /etc/aliases && newaliases
-```
-
-Or set `MAIL_TO="you@example.com"` at the top of
-`/usr/local/bin/disk-health-monitor.sh`. Subjects are `[host] ...` instead of
-`[Proxmox][host] ...`.
-
-## Make sure mail to root is routed (Proxmox VE)
+## Make sure mail to root is routed
 
 ```bash
 # Make sure root@pam has a valid email address

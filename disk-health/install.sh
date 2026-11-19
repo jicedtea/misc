@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 #
 # install.sh
-# Downloads Disk Health Monitor from GitHub and installs it on
-# Debian / Ubuntu / Proxmox VE.
+# Downloads Disk Health Monitor from GitHub and installs it on Proxmox VE.
 #
 # Usage (as root):
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
@@ -19,6 +18,7 @@ if [[ $EUID -ne 0 ]]; then
     echo "Error: this script must run as root (try: sudo bash install.sh)" >&2
     exit 1
 fi
+command -v pveversion >/dev/null 2>&1 || { echo "Error: pveversion not found, only Proxmox VE is supported" >&2; exit 1; }
 command -v curl >/dev/null 2>&1 || { echo "Error: curl is required. Install it with: apt install curl" >&2; exit 1; }
 
 echo ">> Source: ${BASE_URL}"
@@ -66,20 +66,7 @@ $(systemctl list-timers 'disk-*' --no-pager 2>/dev/null || true)
 Try it now:
   /usr/local/bin/disk-health-monitor.sh check
 
-EOF
-if command -v pveversion >/dev/null 2>&1; then
-    cat <<EOF
 IMPORTANT: make sure Datacenter -> Notifications has at least one
 target/matcher matching type=system-mail (and root@pam has a valid email).
 See README.md in the repo if this is not configured yet.
 EOF
-else
-    cat <<EOF
-IMPORTANT: alerts are mailed to root with sendmail. Make sure that mail
-reaches you:
-  - install an MTA if missing: apt install postfix   (or msmtp-mta)
-  - forward root's mail: add "root: you@example.com" to /etc/aliases, run newaliases
-  - or set MAIL_TO="you@example.com" in /usr/local/bin/disk-health-monitor.sh
-EOF
-    command -v sendmail >/dev/null 2>&1 || echo "WARNING: sendmail not found, no mail can be sent yet."
-fi

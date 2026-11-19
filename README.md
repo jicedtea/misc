@@ -8,7 +8,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 |---|---|---|
 | [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
 | [cpupower](cpupower/) | Debian / Ubuntu / Proxmox | Installs `cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
-| [disk-health](disk-health/) | Debian / Ubuntu / Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and mails alerts and weekly reports (through Proxmox VE notifications on Proxmox). |
+| [disk-health](disk-health/) | Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
 | [docker-wait-disks](docker-wait-disks/) | OpenMediaVault | Makes Docker wait at boot for every shared folder (and any extra paths) to exist on a mounted disk, and stay down if one is not ready. |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [pcie-passthrough](pcie-passthrough/) | Proxmox | Dell Wyse 5070: passes the card in the PCIe slot (NIC like Intel i226, or GPU) to a VM: IOMMU, ACS override, vfio-pci binding with D3 idle off. |
@@ -39,8 +39,8 @@ The installer detects the machine and only offers the tools for it:
 
 | Machine | Tools offered |
 |---|---|
-| Debian / Ubuntu | cpupower, disk-health, ipset, nut, turbo-unlock, winpe-grub |
-| Proxmox VE | the above + backup, gpu-passthrough, pcie-passthrough |
+| Debian / Ubuntu | cpupower, ipset, nut, turbo-unlock, winpe-grub |
+| Proxmox VE | the above + backup, disk-health, gpu-passthrough, pcie-passthrough |
 | OpenMediaVault | the Debian / Ubuntu tools + docker-wait-disks, omv-shared-symlinks |
 | Synology DSM | synology-acme |
 
@@ -54,7 +54,7 @@ does not stop the others, and a summary is printed when you quit.
 Pick tools without the menu:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh disk-health nut
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh nut cpupower
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/install.sh)" install.sh all
 ```
 
@@ -74,7 +74,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/cpupo
 # Turbo unlock (Dell Wyse 5070 stuck at 1.5 GHz)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/turbo-unlock/install.sh)"
 
-# Disk Health Monitor
+# Disk Health Monitor (Proxmox VE, alerts through PVE notifications)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
 
 # OpenMediaVault: Docker waits for every shared folder at boot
