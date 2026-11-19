@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Make Docker wait for its data disks at boot on Debian / Ubuntu / Proxmox VE
 #
-# Installs a systemd service required by docker.service. The service waits for the
-# mount points you enter, then checks they are really mounted. If one is missing Docker
-# does not start, so containers never write into the empty folder under the mount point.
+# Installs a systemd service required by docker.service. The service waits up to 2
+# minutes for the paths you enter to exist on a mounted disk (not on the root filesystem).
+# Paths can be mount points, folders on a disk or symlinks to them. If one is not ready
+# Docker does not start, so containers never write to the system disk by mistake.
 #
 # Usage:
-#   bash install.sh                      (interactive: enter the mount points)
-#   bash install.sh install --mount /mnt/data --mount /mnt/media -y
+#   bash install.sh                      (interactive: enter the paths)
+#   bash install.sh install --path /volume1/appdata --path /volume2/storage -y
 #   bash install.sh uninstall
 #
 # Via curl:
@@ -16,7 +17,7 @@ set -euo pipefail
 
 # ---------------------------------------------------------------- defaults
 MODE=""
-MOUNT_ARG=""
+PATH_ARG=""
 NO_RESTART=0
 ASSUME_YES=0
 SERVICE=wait-disks.service
@@ -34,13 +35,13 @@ usage() {
 Usage: $0 [install|uninstall] [options]
 
 Options:
-  --mount PATH   Mount point Docker waits for (repeat for several)
+  --path PATH    Path Docker waits for (repeat for several)
   --no-restart   Do not restart Docker now, the change applies at the next boot
   -y, --yes      Non-interactive, never prompt
 
 Examples:
   $0
-  $0 install --mount /mnt/data --mount /mnt/media -y
+  $0 install --path /volume1/appdata --path /volume2/storage -y
   $0 uninstall
 EOF
 	exit "${1:-0}"
@@ -85,25 +86,26 @@ confirm() {
 	[[ $__yn =~ ^[Yy] ]]
 }
 
-# parse_mounts "INPUT": numbers from MOUNTED or paths, separated by spaces or commas.
-# Fills MOUNTS, warns and returns 1 on the first bad entry.
-parse_mounts() {
+# parse_paths "INPUT": numbers from MOUNTED or paths, separated by spaces or commas.
+# Fills WAIT_PATHS, warns and returns 1 on the first bad entry.
+parse_paths() {
 	local m tokens=()
-	MOUNTS=()
+	WAIT_PATHS=()
 	read -r -a tokens <<<"${1//,/ }"
-	[[ ${#tokens[@]} -gt 0 ]] || { warn "Enter at least one mount point"; return 1; }
+	[[ ${#tokens[@]} -gt 0 ]] || { warn "Enter at least one path"; return 1; }
 	for m in "${tokens[@]}"; do
 		if [[ $m =~ ^[0-9]+$ ]]; then
 			((m >= 1 && m <= ${#MOUNTED[@]})) || { warn "No mount point number $m"; return 1; }
 			m=${MOUNTED[m - 1]}
 		fi
 		[[ $m == /* ]] || { warn "$m: not an absolute path"; return 1; }
-		m=$(realpath -m -- "$m")
-		# Spaces and % have a special meaning in unit files
+		[[ $m == / ]] || m=${m%/}   # no realpath: a symlink must stay a symlink
+		# Spaces, % and $ have a special meaning in unit files and in the check
 		[[ $m =~ ^/[A-Za-z0-9._/@:+-]*$ ]] || { warn "$m: only letters, digits and . _ / @ : + - are supported"; return 1; }
-		# Not mounted now means the service fails to start, and Docker with it
-		mountpoint -q "$m" || { warn "$m is not mounted right now, mount it first"; return 1; }
-		[[ " ${MOUNTS[*]} " == *" $m "* ]] || MOUNTS+=("$m")
+		# Not ready now means the service fails to start, and Docker with it
+		[[ -d $m ]] || { warn "$m does not exist, mount the disk or create it first"; return 1; }
+		[[ $(findmnt -nT "$m" -o TARGET) != / ]] || { warn "$m is on the root filesystem, not on a mounted disk"; return 1; }
+		[[ " ${WAIT_PATHS[*]} " == *" $m "* ]] || WAIT_PATHS+=("$m")
 	done
 }
 
@@ -119,7 +121,7 @@ fi
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
-		--mount)      MOUNT_ARG="${MOUNT_ARG:+$MOUNT_ARG }$2"; shift 2 ;;
+		--path)       PATH_ARG="${PATH_ARG:+$PATH_ARG }$2"; shift 2 ;;
 		--no-restart) NO_RESTART=1; shift ;;
 		-y|--yes)     ASSUME_YES=1; shift ;;
 		-h|--help)    usage 0 ;;
@@ -132,14 +134,14 @@ done
 [[ $ASSUME_YES -eq 1 ]] && INTERACTIVE=0
 
 CURRENT=""
-[[ -f $SERVICE_FILE ]] && CURRENT=$(sed -n 's/^RequiresMountsFor=//p' "$SERVICE_FILE")
+[[ -f $SERVICE_FILE ]] && CURRENT=$(sed -n 's/.*for p in \([^;]*\); do.*/\1/p' "$SERVICE_FILE")
 
 if [[ -z $MODE ]]; then
 	MODE=install
 	if [[ -f $SERVICE_FILE && $INTERACTIVE -eq 1 ]]; then
 		info "$SERVICE is installed, Docker waits for: ${CURRENT:-nothing}"
 		choose MODE "What do you want to do?" install \
-			"install|Change the mount points" \
+			"install|Change the paths" \
 			"uninstall|Uninstall"
 	fi
 fi
@@ -152,7 +154,7 @@ if [[ $MODE == uninstall ]]; then
 		systemctl stop "$SERVICE" 2>/dev/null || true
 		rm -f "$SERVICE_FILE"
 		systemctl daemon-reload
-		ok "Removed $SERVICE, Docker no longer waits for the mount points"
+		ok "Removed $SERVICE, Docker no longer waits for the paths"
 	else
 		warn "$SERVICE is not installed"
 	fi
@@ -161,12 +163,12 @@ fi
 
 # ---------------------------------------------------------------- checks
 systemctl cat docker.service >/dev/null 2>&1 || die "docker.service not found, install Docker first"
-MOUNTPOINT_BIN=$(command -v mountpoint) || die "mountpoint not found (package util-linux)"
+command -v findmnt >/dev/null || die "findmnt not found (package util-linux)"
 
-# ---------------------------------------------------------------- mount points
+# ---------------------------------------------------------------- paths
 MOUNTED=()
 mapfile -t MOUNTED < <(findmnt -rn --real -o TARGET 2>/dev/null | grep -vE '^/$|^/(boot|snap|run|var/lib/docker)(/|$)|\\x' || true)
-MOUNTS=()
+WAIT_PATHS=()
 if [[ $INTERACTIVE -eq 1 ]]; then
 	if [[ ${#MOUNTED[@]} -gt 0 ]]; then
 		echo
@@ -177,19 +179,19 @@ if [[ $INTERACTIVE -eq 1 ]]; then
 		echo
 	fi
 	while :; do
-		ask input "Mount points to wait for (numbers or paths, separated by spaces)" "${MOUNT_ARG:-$CURRENT}"
-		parse_mounts "$input" && break
+		ask input "Paths to wait for (numbers or paths, separated by spaces)" "${PATH_ARG:-$CURRENT}"
+		parse_paths "$input" && break
 	done
 else
-	[[ -n ${MOUNT_ARG:-$CURRENT} ]] || die "No mount points, use --mount PATH"
-	parse_mounts "${MOUNT_ARG:-$CURRENT}" || die "Invalid mount points"
+	[[ -n ${PATH_ARG:-$CURRENT} ]] || die "No paths, use --path PATH"
+	parse_paths "${PATH_ARG:-$CURRENT}" || die "Invalid paths"
 fi
 
 echo
 info "Summary"
 echo "    Service : $SERVICE_FILE (required by docker.service)"
 echo "    Docker waits for:"
-printf '      %s\n' "${MOUNTS[@]}"
+printf '      %s\n' "${WAIT_PATHS[@]}"
 echo
 if [[ $INTERACTIVE -eq 1 ]]; then
 	confirm "Proceed?" || die "Cancelled"
@@ -199,18 +201,17 @@ fi
 {
 	cat <<EOF
 [Unit]
-Description=Check data disks are mounted
+Description=Check paths are backed by mounted disks
 After=local-fs.target remote-fs.target
 Before=docker.service
-RequiresMountsFor=${MOUNTS[*]}
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+TimeoutStartSec=180
 EOF
-	for m in "${MOUNTS[@]}"; do
-		echo "ExecStart=$MOUNTPOINT_BIN -q $m"
-	done
+	# 40 tries, 3 seconds apart. $$ is a literal $ in a unit file
+	printf 'ExecStart=/bin/bash -c '\''for i in $$(seq 40); do ok=1; for p in %s; do [ -d "$$p" ] && [ "$$(findmnt -nT "$$p" -o TARGET)" != "/" ] || { ok=0; echo "not ready: $$p" >&2; }; done; [ $$ok = 1 ] && exit 0; sleep 3; done; exit 1'\''\n' "${WAIT_PATHS[*]}"
 	cat <<EOF
 
 [Install]
@@ -223,6 +224,7 @@ systemctl daemon-reload
 # enable --now, not restart: restarting a unit that docker.service requires restarts Docker too
 systemctl enable --now "$SERVICE" >/dev/null 2>&1 || die "$SERVICE failed: journalctl -u $SERVICE"
 ok "$SERVICE enabled and started"
+systemctl --no-pager status "$SERVICE" || true
 
 # ---------------------------------------------------------------- docker
 if [[ $NO_RESTART -eq 1 ]]; then
@@ -238,6 +240,6 @@ cat <<EOF
 
   Check: systemctl status $SERVICE
          systemctl list-dependencies docker | grep wait-disks
-  If a disk is missing at boot, Docker stays down. Fix the disk, then: systemctl start docker
+  If a path is not ready 2 minutes after boot, Docker stays down. Fix it, then: systemctl start docker
   Remove: bash install.sh uninstall
 EOF

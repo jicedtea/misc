@@ -9,7 +9,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
 | [cpupower](cpupower/) | Debian / Ubuntu / Proxmox | Installs `cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
 | [disk-health](disk-health/) | Debian / Ubuntu / Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and mails alerts and weekly reports (through Proxmox VE notifications on Proxmox). |
-| [docker-wait-disks](docker-wait-disks/) | Debian / Ubuntu / Proxmox | Makes Docker wait at boot for the mount points you enter, and stay down if one is missing. |
+| [docker-wait-disks](docker-wait-disks/) | Debian / Ubuntu / Proxmox | Makes Docker wait at boot for the paths you enter to exist on a mounted disk, and stay down if one is not ready. |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [pcie-passthrough](pcie-passthrough/) | Proxmox | Dell Wyse 5070: passes the card in the PCIe slot (NIC like Intel i226, or GPU) to a VM: IOMMU, ACS override, vfio-pci binding with D3 idle off. |
 | [ipset](ipset/) | Debian / Ubuntu / Proxmox (UFW) | Blocks known-bad IPs from [stamparm/ipsum](https://github.com/stamparm/ipsum) with an ipset and UFW rules. Restored at boot, updated daily. |
@@ -73,7 +73,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/turbo
 # Disk Health Monitor
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
 
-# Docker waits for the data disks at boot (asks for the mount points)
+# Docker waits for the data disks at boot (asks for the paths)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/docker-wait-disks/install.sh)"
 
 # GPU passthrough (interactive wizard: setup / check / uninstall)
