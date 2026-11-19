@@ -9,7 +9,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [backup](backup/) | Proxmox | vzdump hook that uploads host config and backup dumps to an rclone remote after every backup job. |
 | [cpupower](cpupower/) | Debian / Ubuntu / Proxmox | Installs `cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
 | [disk-health](disk-health/) | Debian / Ubuntu / Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and mails alerts and weekly reports (through Proxmox VE notifications on Proxmox). |
-| [docker-wait-disks](docker-wait-disks/) | Debian / Ubuntu / Proxmox | Makes Docker wait at boot for the paths you enter to exist on a mounted disk, and stay down if one is not ready. |
+| [docker-wait-disks](docker-wait-disks/) | OpenMediaVault | Makes Docker wait at boot for every shared folder (and any extra paths) to exist on a mounted disk, and stay down if one is not ready. |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [pcie-passthrough](pcie-passthrough/) | Proxmox | Dell Wyse 5070: passes the card in the PCIe slot (NIC like Intel i226, or GPU) to a VM: IOMMU, ACS override, vfio-pci binding with D3 idle off. |
 | [ipset](ipset/) | Debian / Ubuntu / Proxmox (UFW) | Blocks known-bad IPs from [stamparm/ipsum](https://github.com/stamparm/ipsum) with an ipset and UFW rules. Restored at boot, updated daily. |
@@ -39,9 +39,9 @@ The installer detects the machine and only offers the tools for it:
 
 | Machine | Tools offered |
 |---|---|
-| Debian / Ubuntu | cpupower, disk-health, docker-wait-disks, ipset, nut, turbo-unlock, winpe-grub |
+| Debian / Ubuntu | cpupower, disk-health, ipset, nut, turbo-unlock, winpe-grub |
 | Proxmox VE | the above + backup, gpu-passthrough, pcie-passthrough |
-| OpenMediaVault | the Debian / Ubuntu tools + omv-shared-symlinks |
+| OpenMediaVault | the Debian / Ubuntu tools + docker-wait-disks, omv-shared-symlinks |
 | Synology DSM | synology-acme |
 
 A menu lists the tools. Tools that only run on one OS show it in front of their
@@ -77,7 +77,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/turbo
 # Disk Health Monitor
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-health/install.sh)"
 
-# Docker waits for the data disks at boot (asks for the paths)
+# OpenMediaVault: Docker waits for every shared folder at boot
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/docker-wait-disks/install.sh)"
 
 # GPU passthrough (interactive wizard: setup / check / uninstall)
@@ -117,7 +117,7 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── backup/              vzdump hook script + installer (rclone upload)
 ├── cpupower/            CPU governor at boot (systemd service)
 ├── disk-health/         SMART monitor script, systemd services/timers, installer
-├── docker-wait-disks/   Docker waits for the data disks at boot (systemd service)
+├── docker-wait-disks/   OMV: Docker waits for the shared folders at boot (systemd service)
 ├── gpu-passthrough/     GPU / iGPU / GVT-g passthrough host setup
 ├── ipset/               UFW IP blacklist (ipsum) with boot restore and daily update
 ├── nut/                 NUT installer for UPS server/client

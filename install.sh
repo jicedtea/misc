@@ -29,7 +29,7 @@ ALL_TOOLS=(
 	"ipset|UFW blacklist of known-bad IPs (stamparm/ipsum), updated daily|install|linux"
 	"cpupower|CPU governor (performance / schedutil / powersave...) set at every boot|install|linux"
 	"turbo-unlock|Clear the BIOS turbo lock (Dell Wyse 5070 stuck at 1.5 GHz) at every boot|install|linux"
-	"docker-wait-disks|Docker waits for the data disks at boot, stays down if one is missing|install|linux"
+	"docker-wait-disks|Docker waits at boot for every shared folder, stays down if one is missing|install|omv"
 	"omv-shared-symlinks|/shared/<name> symlink for every OpenMediaVault shared folder|install|omv"
 	"winpe-grub|Hiren's BootCD PE (WinPE) in the GRUB menu, booted from the ISO|install|linux"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
