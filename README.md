@@ -18,7 +18,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [turbo-unlock](turbo-unlock/) | Debian / Ubuntu / Proxmox | Clears the BIOS turbo lock (MSR `0x1a0` bit 38) at every boot, e.g. Dell Wyse 5070 stuck at 1.5 GHz. |
 | [omv-shared-symlinks](omv-shared-symlinks/) | OpenMediaVault | Keeps a `/shared/<name>` symlink for every shared folder with a Salt state, so paths do not depend on disk UUIDs. |
 | [omv-telegram](omv-telegram/) | OpenMediaVault | Sends every OMV notification (alerts, SMART, RAID, cron, logins) to a Telegram chat through a bot, with a notification sink script. |
-| [winpe-grub](winpe-grub/) | Debian / Ubuntu / Proxmox | Adds Hiren's BootCD PE (WinPE) to the GRUB menu: downloads the ISO and boots it from disk through wimboot. |
+| [winpe-grub](winpe-grub/) | Debian / Ubuntu / Proxmox | Adds a small WinPE ISO (Windows ADK, PhoenixPE, Windows install ISO) to the GRUB menu and boots it from disk through wimboot. |
 | [synology-acme](synology-acme/) | Synology | Installs acme.sh, issues a certificate through a DNS API (Let's Encrypt / ZeroSSL) and deploys it to DSM. |
 
 ## Requirements
@@ -104,7 +104,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/omv-s
 # OpenMediaVault notifications to Telegram (asks for the bot token and chat ID)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/omv-telegram/install.sh)"
 
-# Hiren's BootCD PE in the GRUB menu (downloads the ~3 GB ISO to /boot)
+# WinPE ISO in the GRUB menu (asks for the ISO; boot.wim must be under ~800 MB)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/winpe-grub/install.sh)"
 
 # acme.sh for Synology DSM (run on the NAS after sudo -i)
@@ -136,5 +136,5 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── pcie-passthrough/    Dell Wyse 5070 PCIe slot passthrough (vfio-pci, ACS, D3 fix)
 ├── synology-acme/       acme.sh installer for Synology DSM
 ├── turbo-unlock/        BIOS turbo lock fix at boot (systemd service)
-└── winpe-grub/          Hiren's BootCD PE (WinPE ISO) in the GRUB menu via wimboot
+└── winpe-grub/          WinPE ISO in the GRUB menu via wimboot
 ```
