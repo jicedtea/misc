@@ -34,6 +34,7 @@ ALL_TOOLS=(
 	"omv-shared-symlinks|/shared/<name> symlink for every OpenMediaVault shared folder|install|omv"
 	"omv-telegram|Forward OpenMediaVault notifications to a Telegram chat through a bot||omv"
 	"winpe-grub|WinPE ISO (ADK, PhoenixPE...) in the GRUB menu, booted via wimboot|install|linux"
+	"ffmpeg-static|Static ffmpeg + ffprobe build (VA-API / QSV / NVENC) in /usr/local/bin|install|linux"
 	"gpu-drivers|Intel media driver (VA-API / QSV) and NVIDIA driver (DKMS) for the host|install|debian"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"pcie-passthrough|Dell Wyse 5070 PCIe slot passthrough fix: IOMMU, ACS, vfio-pci (needs a reboot)|setup|pve"

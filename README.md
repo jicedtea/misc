@@ -10,6 +10,7 @@ and Synology DSM). Each tool lives in its own folder with its own `install.sh` a
 | [cpupower](cpupower/) | Debian / Ubuntu / Proxmox | Installs `cpupower`, lets you pick a CPU governor the CPU supports and sets it at every boot with a systemd service. |
 | [disk-health](disk-health/) | Proxmox | Monitors SMART data of SATA/NVMe disks, runs scheduled short/long self-tests and sends alerts and weekly reports through Proxmox VE notifications. |
 | [docker-wait-disks](docker-wait-disks/) | OpenMediaVault | Makes Docker wait at boot for every shared folder (and any extra paths) to exist on a mounted disk, and stay down if one is not ready. |
+| [ffmpeg-static](ffmpeg-static/) | Debian / Ubuntu / Proxmox / OMV | Downloads a static `ffmpeg` / `ffprobe` build (FFmpeg-Builds with VA-API, QSV, NVENC, or johnvansickle.com) to `/usr/local/bin`, checksum-verified, updated by running it again. |
 | [gpu-drivers](gpu-drivers/) | Debian / Proxmox / OMV | Intel media driver (VA-API / QSV, HuC firmware) and NVIDIA driver (NVIDIA's CUDA repo or Debian, DKMS), with Docker toolkit and LXC device nodes. |
 | [gpu-passthrough](gpu-passthrough/) | Proxmox | Prepares the host for GPU / Intel iGPU passthrough or Intel GVT-g (split iGPU): kernel options, VFIO modules, driver blacklist. |
 | [pcie-passthrough](pcie-passthrough/) | Proxmox | Dell Wyse 5070: passes the card in the PCIe slot (NIC like Intel i226, or GPU) to a VM: IOMMU, ACS override, vfio-pci binding with D3 idle off. |
@@ -41,7 +42,7 @@ The installer detects the machine and only offers the tools for it:
 
 | Machine | Tools offered |
 |---|---|
-| Ubuntu | cpupower, ipset, nut, turbo-unlock, winpe-grub |
+| Ubuntu | cpupower, ffmpeg-static, ipset, nut, turbo-unlock, winpe-grub |
 | Debian | the above + gpu-drivers |
 | Proxmox VE | the Debian tools + backup, disk-health, gpu-passthrough, pcie-passthrough |
 | OpenMediaVault | the Debian tools + docker-wait-disks, omv-shared-symlinks, omv-telegram |
@@ -82,6 +83,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/disk-
 
 # OpenMediaVault: Docker waits for every shared folder at boot
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/docker-wait-disks/install.sh)"
+
+# Static ffmpeg + ffprobe in /usr/local/bin (interactive wizard: install / check / uninstall)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/ffmpeg-static/install.sh)"
 
 # Intel media driver + NVIDIA driver (interactive wizard: install / check / uninstall)
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/jicedtea/misc/main/gpu-drivers/install.sh)"
@@ -127,6 +131,7 @@ always downloads its files from GitHub, so use the manual install steps in
 ├── cpupower/            CPU governor at boot (systemd service)
 ├── disk-health/         SMART monitor script, systemd services/timers, installer
 ├── docker-wait-disks/   OMV: Docker waits for the shared folders at boot (systemd service)
+├── ffmpeg-static/       static ffmpeg / ffprobe build in /usr/local/bin
 ├── gpu-drivers/         Intel VA-API / QSV + NVIDIA driver (DKMS) for the host
 ├── gpu-passthrough/     GPU / iGPU / GVT-g passthrough host setup
 ├── ipset/               UFW IP blacklist (ipsum) with boot restore and daily update
