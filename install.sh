@@ -2,7 +2,8 @@
 # Installer for every tool in this repo. The menu runs one tool at a time with its
 # own wizard (install / check / uninstall) and comes back to the menu afterwards.
 # Only the tools for this machine are offered: Debian/Ubuntu tools everywhere
-# except Synology, Proxmox-only tools on Proxmox VE, OMV-only tools on OpenMediaVault,
+# except Synology, Debian-only tools on Debian / Proxmox VE / OpenMediaVault (not Ubuntu),
+# Proxmox-only tools on Proxmox VE, OMV-only tools on OpenMediaVault,
 # Synology tools on Synology DSM.
 #
 # Usage:
@@ -19,8 +20,8 @@ set -euo pipefail
 RAW_URL="https://raw.githubusercontent.com/jicedtea/misc/main"
 
 # name|description|arguments for its install.sh|platform
-#   linux = Debian / Ubuntu / Proxmox VE / OpenMediaVault, pve = Proxmox VE only,
-#   omv = OpenMediaVault only, syno = Synology DSM
+#   linux = Debian / Ubuntu / Proxmox VE / OpenMediaVault, debian = the same without Ubuntu,
+#   pve = Proxmox VE only, omv = OpenMediaVault only, syno = Synology DSM
 # (gpu-passthrough and pcie-passthrough last: they need a reboot)
 ALL_TOOLS=(
 	"backup|vzdump hook: upload host config + dumps to an rclone remote|install|pve"
@@ -31,7 +32,9 @@ ALL_TOOLS=(
 	"turbo-unlock|Clear the BIOS turbo lock (Dell Wyse 5070 stuck at 1.5 GHz) at every boot|install|linux"
 	"docker-wait-disks|Docker waits at boot for every shared folder, stays down if one is missing|install|omv"
 	"omv-shared-symlinks|/shared/<name> symlink for every OpenMediaVault shared folder|install|omv"
+	"omv-telegram|Forward OpenMediaVault notifications to a Telegram chat through a bot||omv"
 	"winpe-grub|Hiren's BootCD PE (WinPE) in the GRUB menu, booted from the ISO|install|linux"
+	"gpu-drivers|Intel media driver (VA-API / QSV) and NVIDIA driver (DKMS) for the host|install|debian"
 	"gpu-passthrough|GPU / iGPU / GVT-g passthrough host setup (needs a reboot)|setup|pve"
 	"pcie-passthrough|Dell Wyse 5070 PCIe slot passthrough fix: IOMMU, ACS, vfio-pci (needs a reboot)|setup|pve"
 	"synology-acme|acme.sh: Let's Encrypt certificate via DNS API, deployed to DSM|install|syno"
@@ -41,17 +44,19 @@ ALL_TOOLS=(
 if [[ -f /etc/synoinfo.conf ]] && grep -qs productversion /etc.defaults/VERSION; then
 	PLATFORMS=(syno); PLATFORM_NAME="Synology DSM"
 elif command -v pveversion >/dev/null 2>&1; then
-	PLATFORMS=(linux pve); PLATFORM_NAME="Proxmox VE"
+	PLATFORMS=(linux debian pve); PLATFORM_NAME="Proxmox VE"
 elif command -v omv-salt >/dev/null 2>&1; then
-	PLATFORMS=(linux omv); PLATFORM_NAME="OpenMediaVault"
+	PLATFORMS=(linux debian omv); PLATFORM_NAME="OpenMediaVault"
 else
 	PLATFORMS=(linux)
+	[[ $(. /etc/os-release 2>/dev/null && echo "${ID:-}") == debian ]] && PLATFORMS+=(debian)
 	PLATFORM_NAME=$(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-Linux}" || echo Linux)
 	[[ -f /etc/debian_version ]] || echo "Warning: only Debian / Ubuntu based systems are supported" >&2
 fi
 # Tools bound to one OS show it in front of their description, e.g. "[Proxmox] ..."
 platform_tag() {
 	case $1 in
+		debian) echo "[Debian] " ;;
 		pve)  echo "[Proxmox] " ;;
 		omv)  echo "[OMV] " ;;
 		syno) echo "[Synology] " ;;
